@@ -1,4 +1,6 @@
-This project implements a real-time BNPL (Buy Now, Pay Later) eligibility system inspired by fintech checkout experiences.
+# BNPL (Buy Now, Pay Later)
+
+This project implements a real-time **BNPL (Buy Now, Pay Later)** eligibility system inspired by fintech checkout experiences.
 
 It simulates how platforms like GrabOn can leverage transaction-level behavioral data to underwrite instant credit decisions at the moment of purchase.
 
