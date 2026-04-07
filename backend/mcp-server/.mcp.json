@@ -1,0 +1,14 @@
+{
+  "name": "grabon-bnpl-mcp",
+  "version": "1.0.0",
+  "description": "GrabOn BNPL credit scoring MCP server with 6-factor model",
+  "mcpServers": {
+    "grabon-bnpl": {
+      "command": "python",
+      "args": ["server.py"],
+      "env": {
+        "DATABASE_PATH": "../synthetic-data-gen/output/grabon_bnpl.db"
+      }
+    }
+  }
+}

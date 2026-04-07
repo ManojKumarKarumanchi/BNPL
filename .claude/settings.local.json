@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:www.grabon.in)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm info:*)",
+      "Bash(pip show:*)",
+      "WebFetch(domain:www.evidentlyai.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(pip install:*)",
+      "Bash(python main.py)",
+      "WebFetch(domain:medium.com)",
+      "Bash(PYTHONIOENCODING=utf-8 python:*)",
+      "Bash(curl -X POST http://localhost:8000/api/checkout/eligibility -H \"Content-Type: application/json\" -d '{\"user_id\":\"USR_VIKRAM\",\"product_id\":\"PROD_TEST\",\"amount\":12499}')",
+      "Bash(pkill -f \"python main.py\")",
+      "Bash(python -m json.tool)",
+      "Bash(taskkill //F //IM python.exe)"
     ]
   }
 }

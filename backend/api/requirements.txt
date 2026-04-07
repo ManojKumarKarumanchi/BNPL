@@ -1,0 +1,21 @@
+# FastAPI REST Server Dependencies
+
+# FastAPI & ASGI server
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# HTTP client for MCP
+httpx==0.28.1
+
+# Validation
+pydantic==2.10.4
+pydantic-settings==2.6.1
+
+# CORS
+python-multipart==0.0.12
+
+# Environment
+python-dotenv==1.0.1
+
+# Utilities
+# tenacity==9.0.0  # Removed - not needed for direct MCP calls

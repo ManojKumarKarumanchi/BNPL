@@ -1,0 +1,10 @@
+fastapi
+fastmcp
+uvicorn
+sqlalchemy
+psycopg2-binary
+ollama
+openai
+python-dotenv
+asyncio
+python-multipart
