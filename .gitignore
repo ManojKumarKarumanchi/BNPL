@@ -147,3 +147,5 @@ __pycache__/
 .venv/
 venv/
 
+# Optional
+context_background.txt
