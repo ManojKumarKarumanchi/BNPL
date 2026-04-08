@@ -33,30 +33,41 @@ export const userEligibility = {
   }
 };
 
+// PayU LazyPay standardized offerings: 15-day BNPL (default) + 3/6/9 month EMI (optional)
 export const emiOptions = [
   {
     id: 1,
-    duration: 3,
-    monthlyPayment: 4200,
-    tag: 'No Cost EMI',
-    totalAmount: 12600,
-    interestRate: 0
+    duration: 0.5,
+    monthlyPayment: 12499,
+    tag: 'Pay in 15 days - No interest',
+    totalAmount: 12499,
+    interestRate: 0,
+    isOneTimePayment: true,
+    dueDate: '2026-04-23'
   },
   {
     id: 2,
-    duration: 6,
-    monthlyPayment: 2150,
-    tag: 'Best Value',
-    totalAmount: 12900,
-    interestRate: 3.2
+    duration: 3,
+    monthlyPayment: 4291,
+    tag: 'Short EMI',
+    totalAmount: 12873,
+    interestRate: 12
   },
   {
     id: 3,
+    duration: 6,
+    monthlyPayment: 2217,
+    tag: 'Standard EMI',
+    totalAmount: 13300,
+    interestRate: 14
+  },
+  {
+    id: 4,
     duration: 9,
-    monthlyPayment: 1500,
-    tag: null,
-    totalAmount: 13500,
-    interestRate: 8
+    monthlyPayment: 1555,
+    tag: 'Flexible EMI',
+    totalAmount: 13999,
+    interestRate: 16
   }
 ];
 
@@ -108,7 +119,7 @@ export const userPersonas = {
     name: 'Amit Patel',
     type: 'Growing User',
     status: 'approved',
-    creditLimit: 15000,
+    creditLimit: 10000,  // PayU LazyPay Growing tier
     reason: 'Based on your 25 purchases over the past 4 months and low return rate of 4%, you qualify for Pay Later. Your average order value of ₹1,850 and consistent monthly activity show responsible buying behavior.',
     transactionHistory: {
       totalPurchases: 25,
@@ -118,8 +129,9 @@ export const userPersonas = {
       daysSinceJoined: 127
     },
     emiOptions: [
-      { id: 1, duration: 3, monthlyPayment: 4200, tag: 'No Cost EMI', totalAmount: 12600, interestRate: 0 },
-      { id: 2, duration: 6, monthlyPayment: 2150, tag: null, totalAmount: 12900, interestRate: 3.2 }
+      { id: 1, duration: 0.5, monthlyPayment: 12499, tag: 'Pay in 15 days - No interest', totalAmount: 12499, interestRate: 0, isOneTimePayment: true, dueDate: '2026-04-23' },
+      { id: 2, duration: 3, monthlyPayment: 4291, tag: 'Short EMI', totalAmount: 12873, interestRate: 12 },
+      { id: 3, duration: 6, monthlyPayment: 2217, tag: 'Standard EMI', totalAmount: 13300, interestRate: 14 }
     ]
   },
 
@@ -128,7 +140,7 @@ export const userPersonas = {
     name: 'Sneha Reddy',
     type: 'Regular User',
     status: 'approved',
-    creditLimit: 25000,
+    creditLimit: 30000,  // PayU LazyPay Regular tier
     reason: 'Based on your frequent purchases, low return rate of 2%, and consistent spending over the past 6 months, you\'ve been pre-approved for instant credit. Your track record of 48 completed orders demonstrates reliability.',
     transactionHistory: {
       totalPurchases: 48,
@@ -138,9 +150,10 @@ export const userPersonas = {
       daysSinceJoined: 235
     },
     emiOptions: [
-      { id: 1, duration: 3, monthlyPayment: 4200, tag: 'No Cost EMI', totalAmount: 12600, interestRate: 0 },
-      { id: 2, duration: 6, monthlyPayment: 2150, tag: 'Best Value', totalAmount: 12900, interestRate: 3.2 },
-      { id: 3, duration: 9, monthlyPayment: 1500, tag: null, totalAmount: 13500, interestRate: 8 }
+      { id: 1, duration: 0.5, monthlyPayment: 12499, tag: 'Pay in 15 days - No interest', totalAmount: 12499, interestRate: 0, isOneTimePayment: true, dueDate: '2026-04-23' },
+      { id: 2, duration: 3, monthlyPayment: 4291, tag: 'Short EMI', totalAmount: 12873, interestRate: 12 },
+      { id: 3, duration: 6, monthlyPayment: 2217, tag: 'Standard EMI', totalAmount: 13300, interestRate: 14 },
+      { id: 4, duration: 9, monthlyPayment: 1555, tag: 'Flexible EMI', totalAmount: 13999, interestRate: 16 }
     ]
   },
 
@@ -149,7 +162,7 @@ export const userPersonas = {
     name: 'Vikram Malhotra',
     type: 'Power User',
     status: 'approved',
-    creditLimit: 50000,
+    creditLimit: 100000,  // PayU LazyPay Power tier
     reason: 'As a valued power user with 237 successful transactions and exceptional spending consistency, you qualify for our highest credit tier. Your 0% return rate, premium average order value of ₹4,200, and 18-month membership make you eligible for exclusive benefits.',
     transactionHistory: {
       totalPurchases: 237,
@@ -160,10 +173,11 @@ export const userPersonas = {
       vipStatus: true
     },
     emiOptions: [
-      { id: 1, duration: 3, monthlyPayment: 4200, tag: 'No Cost EMI', totalAmount: 12600, interestRate: 0 },
-      { id: 2, duration: 6, monthlyPayment: 2100, tag: 'Best Value', totalAmount: 12600, interestRate: 0 },
-      { id: 3, duration: 9, monthlyPayment: 1450, tag: 'VIP Rate', totalAmount: 13050, interestRate: 4.4 },
-      { id: 4, duration: 12, monthlyPayment: 1100, tag: null, totalAmount: 13200, interestRate: 5.6 }
+      { id: 1, duration: 0.5, monthlyPayment: 12499, tag: 'Pay in 15 days - No interest', totalAmount: 12499, interestRate: 0, isOneTimePayment: true, dueDate: '2026-04-23' },
+      { id: 2, duration: 3, monthlyPayment: 4291, tag: 'Short EMI', totalAmount: 12873, interestRate: 12 },
+      { id: 3, duration: 6, monthlyPayment: 2217, tag: 'Standard EMI', totalAmount: 13300, interestRate: 14 },
+      { id: 4, duration: 9, monthlyPayment: 1555, tag: 'Flexible EMI', totalAmount: 13999, interestRate: 16 }
+      // 12-month EMI removed - standardized to 15-day BNPL + 3/6/9 month EMI only
     ]
   }
 };

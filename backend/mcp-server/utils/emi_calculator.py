@@ -148,9 +148,14 @@ def generate_emi_plans(
     """
     Generate EMI options based on credit tier.
 
-    PayU LazyPay Model:
-    - Primary: 15-day one-time payment @ 0% (duration: 0.5)
-    - Secondary: 3/6/9/12 month EMI @ 12-18% p.a.
+    PayU LazyPay Model (Standardized):
+    - Primary: 15-day one-time payment @ 0% (duration: 0.5) - BNPL default
+    - Secondary: 3/6/9 month EMI @ 12-16% p.a. (optional EMI conversion)
+
+    Credit Tier Offerings:
+    - Growing (₹10K): 15-day + 3/6 month EMI
+    - Regular (₹30K): 15-day + 3/6/9 month EMI
+    - Power (₹100K): 15-day + 3/6/9 month EMI
 
     Args:
         purchase_amount: Purchase amount
@@ -158,7 +163,7 @@ def generate_emi_plans(
         credit_limit: User's credit limit
 
     Returns:
-        List of EMI options (15-day first, then EMI options)
+        List of EMI options (15-day BNPL first, then EMI options)
     """
     tier_config = config.CREDIT_TIERS.get(credit_tier, {})
     emi_durations = tier_config.get("emi_durations", [])
@@ -201,9 +206,7 @@ def generate_emi_plans(
             elif duration == 6:
                 tag = "Standard EMI"
             elif duration == 9:
-                tag = "Flexible EMI"
-            elif duration == 12:
-                tag = "Extended EMI"
+                tag = "Flexible EMI"  # Max tenure in standardized offering
 
             emi_options.append({
                 "id": i,

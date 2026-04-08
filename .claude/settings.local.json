@@ -71,7 +71,8 @@
       "Bash(chmod +x test_all_personas.sh)",
       "Bash(./test_all_personas.sh)",
       "WebFetch(domain:www.herofincorp.com)",
-      "WebFetch(domain:payu.in)"
+      "WebFetch(domain:payu.in)",
+      "Bash(pkill -f \"python run.py\")"
     ]
   }
 }

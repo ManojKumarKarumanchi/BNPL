@@ -56,19 +56,20 @@ CREDIT_TIERS = {
     },
     "power": {
         "credit_limit": 100000,  # ₹100K (PayU premium)
-        "emi_durations": [0.5, 3, 6, 9, 12],  # All options including 12mo
+        "emi_durations": [0.5, 3, 6, 9],  # 15-day BNPL + 3/6/9 month EMI
         "description": "VIP status - PayU LazyPay premium"
     }
 }
 
 # EMI interest rates by duration (PayU LazyPay actual rates)
-# PayU Model: 15-day free, then 12-18% p.a. for EMI
+# PayU Model: 15-day free, then 12-16% p.a. for EMI
+# Standardized offerings: 15-day BNPL + 3/6/9 month EMI only
 EMI_INTEREST_RATES = {
-    0.5: 0.0,   # 15 days @ 0% (PayU LazyPay primary offering)
+    0.5: 0.0,   # 15 days @ 0% (PayU LazyPay primary offering - BNPL default)
     3: 12.0,    # 3 months @ 12% p.a. (PayU standard EMI rate)
     6: 14.0,    # 6 months @ 14% p.a.
-    9: 16.0,    # 9 months @ 16% p.a.
-    12: 18.0    # 12 months @ 18% p.a. (longest tenure)
+    9: 16.0,    # 9 months @ 16% p.a. (max tenure)
+    # 12: 18.0  # Removed - not offered in standardized PayU LazyPay integration
 }
 
 # Scoring weights (6-factor model)

@@ -230,18 +230,23 @@ class PayULazyPayClient:
 
             for tenure_str, plan_data in plans.items():
                 try:
-                    tenure = int(tenure_str)
+                    tenure = float(tenure_str)  # Support 0.5 for 15-day payment
 
                     # Extract EMI details
                     monthly_emi = float(plan_data.get("emi_amount", plan_data.get("monthly_installment", 0)))
                     interest_rate = float(plan_data.get("interest_rate", 0))
 
-                    # Calculate total amount
-                    total_amount = monthly_emi * tenure
+                    # Calculate total amount (special case for 15-day one-time payment)
+                    if tenure == 0.5:
+                        total_amount = monthly_emi  # Full amount paid once
+                    else:
+                        total_amount = monthly_emi * tenure
 
                     # Determine tag based on tenure and interest
                     tag = None
-                    if interest_rate == 0:
+                    if tenure == 0.5:
+                        tag = "Pay in 15 days - No interest"  # PayU LazyPay primary
+                    elif interest_rate == 0:
                         tag = "No Cost EMI"
                     elif tenure == 6:
                         tag = "Best Value"
@@ -256,7 +261,9 @@ class PayULazyPayClient:
                         "total_amount": round(total_amount, 2),
                         "interest_rate": interest_rate,
                         "processing_fee": 0.0,
-                        "provider": "PayU LazyPay"
+                        "provider": "PayU LazyPay",
+                        "is_one_time_payment": plan_data.get("is_one_time_payment", False),
+                        "due_date": plan_data.get("due_date")  # For 15-day payment
                     })
 
                     plan_id += 1
@@ -425,9 +432,9 @@ class MockPayUClient:
     """
     Mock PayU LazyPay client for demo/testing without real credentials.
 
-    ALIGNED WITH ACTUAL PayU LazyPay TERMS:
-    - 15-day @ 0% interest (primary offering)
-    - 3/6/9/12-month EMI with 12-18% p.a. interest
+    ALIGNED WITH ACTUAL PayU LazyPay TERMS (STANDARDIZED):
+    - 15-day @ 0% interest (primary BNPL offering - default)
+    - 3/6/9-month EMI with 12-16% p.a. interest (optional)
     - Credit limits: ₹10K-₹100K
     - Lending partners: RBL Bank / DMI Finance
 
@@ -435,6 +442,9 @@ class MockPayUClient:
     GrabOn has a strategic partnership with PayU (India's leading payment
     infrastructure) to offer PayU LazyPay as the BNPL product for GrabCredit.
     This mock client uses actual PayU LazyPay terms for demo purposes.
+
+    Standardized Offering: 15-day BNPL as default + 3/6/9 month EMI only
+    (12-month tenure removed for simplified user experience)
 
     Returns realistic PayU-format responses without calling external API.
     Useful for:
@@ -471,7 +481,7 @@ class MockPayUClient:
 
         mock_emi_details = {
             "LAZYPAY": {
-                "0.5": {  # 15-day one-time payment (PayU LazyPay primary)
+                "0.5": {  # 15-day one-time payment (PayU LazyPay primary - BNPL default)
                     "emi_amount": amount,  # Full amount
                     "interest_rate": 0.0,
                     "bank_interest": 0.0,
@@ -497,28 +507,20 @@ class MockPayUClient:
                     "emi_amount": round(amount / 9 * 1.12, 2),  # 16% annual = 12% for 9 months
                     "interest_rate": 16.0,
                     "bank_interest": round(amount * 0.12, 2),
-                    "bank_name": "DMI Finance"  # PayU NBFC partner
-                },
-                "12": {
-                    "emi_amount": round(amount / 12 * 1.18, 2),  # 18% annual
-                    "interest_rate": 18.0,
-                    "bank_interest": round(amount * 0.18, 2),
-                    "bank_name": "DMI Finance"
+                    "bank_name": "DMI Finance"  # PayU NBFC partner (max tenure: 9 months)
                 }
+                # 12-month EMI removed - standardized to 15-day BNPL + 3/6/9 month EMI only
             }
         }
 
-        # Filter plans based on credit tier (PayU LazyPay actual business rules)
-        # Growing tier (₹10K limit): 15-day, 3, 6 months
-        # Regular tier (₹30K limit): 15-day, 3, 6, 9 months
-        # Power tier (₹100K limit): all tenures including 12 months
+        # Filter plans based on credit tier (PayU LazyPay standardized business rules)
+        # Growing tier (₹10K limit): 15-day BNPL + 3/6 month EMI
+        # Regular tier (₹30K limit): 15-day BNPL + 3/6/9 month EMI
+        # Power tier (₹100K limit): 15-day BNPL + 3/6/9 month EMI (same as regular)
         if credit_limit <= 10000:
-            # Remove 9 and 12 month plans
+            # Growing tier: Remove 9 month plan
             mock_emi_details.pop("DMI_FINANCE", None)
-        elif credit_limit <= 30000:
-            # Remove 12 month plan only
-            if "DMI_FINANCE" in mock_emi_details:
-                mock_emi_details["DMI_FINANCE"].pop("12", None)
+        # All tiers now support max 9 months (12-month removed from offering)
 
         # Parse mock response using same logic as real PayU
         emi_plans = self._parse_payu_emi_response(mock_emi_details, amount)
@@ -545,13 +547,19 @@ class MockPayUClient:
 
             for tenure_str, plan_data in plans.items():
                 try:
-                    tenure = int(tenure_str)
+                    tenure = float(tenure_str)  # Support 0.5 for 15-day payment
                     monthly_emi = float(plan_data.get("emi_amount", plan_data.get("monthly_installment", 0)))
                     interest_rate = float(plan_data.get("interest_rate", 0))
-                    total_amount = monthly_emi * tenure
+                    # Calculate total amount (special case for 15-day one-time payment)
+                    if tenure == 0.5:
+                        total_amount = monthly_emi  # Full amount paid once
+                    else:
+                        total_amount = monthly_emi * tenure
 
                     tag = None
-                    if interest_rate == 0:
+                    if tenure == 0.5:
+                        tag = "Pay in 15 days - No interest"  # PayU LazyPay primary
+                    elif interest_rate == 0:
                         tag = "No Cost EMI"
                     elif tenure == 6:
                         tag = "Best Value"

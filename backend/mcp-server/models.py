@@ -58,13 +58,15 @@ class CreditScoreResponse(BaseModel):
 class EMIOption(BaseModel):
     """Single EMI option."""
     id: int = Field(..., description="Option ID")
-    duration: int = Field(..., description="Duration in months")
+    duration: float = Field(..., description="Duration in months (0.5 for 15-day payment)")
     monthly_payment: float = Field(..., description="Monthly payment amount in rupees")
     tag: Optional[str] = Field(None, description="Tag like 'No Cost EMI', 'Best Value', 'VIP Rate'")
     total_amount: float = Field(..., description="Total amount to be paid")
     interest_rate: float = Field(..., description="Interest rate percentage")
     processing_fee: float = Field(default=0.0, description="Processing fee in rupees")
     provider: Optional[str] = Field(None, description="EMI provider name")
+    is_one_time_payment: Optional[bool] = Field(default=False, description="True for 15-day one-time payment")
+    due_date: Optional[str] = Field(None, description="Due date for one-time payment (YYYY-MM-DD)")
 
 
 class EMIOptionsResponse(BaseModel):

@@ -17,13 +17,15 @@ class EMIOption(BaseModel):
     """EMI plan option."""
 
     id: int = Field(..., description="EMI option ID")
-    duration: int = Field(..., description="Duration in months")
+    duration: float = Field(..., description="Duration in months (0.5 for 15-day payment)")
     monthly_payment: float = Field(..., description="Monthly payment amount in INR")
     tag: Optional[str] = Field(None, description="EMI tag (e.g., 'No Cost EMI', 'Best Value')")
     total_amount: float = Field(..., description="Total amount to be paid")
     interest_rate: float = Field(..., description="Annual interest rate (%)")
     processing_fee: Optional[float] = Field(0, description="Processing fee (if any)")
     provider: Optional[str] = Field(None, description="EMI provider (e.g., 'PayU LazyPay')")
+    is_one_time_payment: Optional[bool] = Field(False, description="True for 15-day one-time payment (PayU LazyPay primary)")
+    due_date: Optional[str] = Field(None, description="Due date for one-time payment (YYYY-MM-DD)")
 
 
 class EligibilityResponse(BaseModel):
@@ -87,19 +89,29 @@ class EligibilityResponse(BaseModel):
                 "emi_options": [
                     {
                         "id": 1,
-                        "duration": 3,
-                        "monthly_payment": 4166.33,
-                        "tag": "No Cost EMI",
+                        "duration": 0.5,
+                        "monthly_payment": 12499.0,
+                        "tag": "Pay in 15 days - No interest",
                         "total_amount": 12499.0,
-                        "interest_rate": 0.0
+                        "interest_rate": 0.0,
+                        "is_one_time_payment": True,
+                        "due_date": "2026-04-23"
                     },
                     {
                         "id": 2,
+                        "duration": 3,
+                        "monthly_payment": 4291.67,
+                        "tag": "Short EMI",
+                        "total_amount": 12875.0,
+                        "interest_rate": 12.0
+                    },
+                    {
+                        "id": 3,
                         "duration": 6,
-                        "monthly_payment": 2150.0,
-                        "tag": "Best Value",
-                        "total_amount": 12900.0,
-                        "interest_rate": 3.2
+                        "monthly_payment": 2216.67,
+                        "tag": "Standard EMI",
+                        "total_amount": 13300.0,
+                        "interest_rate": 14.0
                     }
                 ]
             }
