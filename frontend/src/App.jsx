@@ -12,8 +12,8 @@ import { userPersonas, orderData } from './data/mockData';
 import { testConnection } from './services/api';
 
 function App() {
-  // API mode toggle
-  const [useRealAPI, setUseRealAPI] = useState(false);
+  // API mode toggle - Default to Real API mode for production
+  const [useRealAPI, setUseRealAPI] = useState(true);
   const [backendConnected, setBackendConnected] = useState(false);
 
   // Persona management

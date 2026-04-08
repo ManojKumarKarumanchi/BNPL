@@ -186,14 +186,14 @@ if __name__ == "__main__":
     print(f"Database: {config.DB_PATH}")
     print(f"Port: {config.MCP_SERVER_PORT}")
     print("=" * 80)
-    print("\n✅ Server ready. Use FastMCP to run this server.")
-    print("💡 Tools registered: 5")
+    print("\n[MCP] Server ready. Use FastMCP to run this server.")
+    print("[MCP] Tools registered: 5")
     print("   1. get_user_profile_tool")
     print("   2. calculate_credit_score_tool")
     print("   3. generate_emi_options_tool")
     print("   4. explain_credit_decision_tool")
     print("   5. health_check")
-    print("\n📚 See README.md for usage examples\n")
+    print("\n[MCP] See README.md for usage examples\n")
 
     # Run server
     mcp.run()

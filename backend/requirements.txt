@@ -6,8 +6,8 @@ fastapi==0.115.0
 uvicorn[standard]==0.32.0
 
 # MCP Server
-fastmcp==1.2.0
-mcp==1.26.0
+fastmcp
+mcp
 
 # AI Integration
 openai==1.59.8  # Azure OpenAI integration
@@ -23,11 +23,14 @@ pandas==2.2.3
 numpy==2.2.2
 
 # Synthetic Data Generation
-evidently==0.7.21
-faker==33.1.0
+evidently
+faker
 
 # Configuration & Validation
-pydantic==2.10.4
-pydantic-settings==2.7.0
-python-dotenv==1.0.1
-python-multipart==0.0.20
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart
+aiosqlite
+asyncio
+

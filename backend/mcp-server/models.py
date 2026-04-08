@@ -19,11 +19,13 @@ class UserProfileResponse(BaseModel):
     name: str = Field(default="", description="User's full name")
     email: str = Field(default="", description="User's email address")
     member_since: str = Field(default="", description="Registration date (YYYY-MM-DD)")
+    monthly_income: float = Field(default=0.0, description="User's monthly income in rupees")
     total_purchases: int = Field(default=0, description="Total completed purchases")
     avg_order_value: float = Field(default=0.0, description="Average order value in rupees")
     return_rate: float = Field(default=0.0, description="Return rate as decimal (0-1)")
     categories: List[str] = Field(default_factory=list, description="Shopping categories")
     transactions: List[Dict[str, Any]] = Field(default_factory=list, description="Recent transactions")
+    current_emi_burden: float = Field(default=0.0, description="Current monthly EMI commitments in rupees")
     error: Optional[str] = Field(None, description="Error message if any")
 
 
@@ -43,11 +45,13 @@ class CreditScoreResponse(BaseModel):
     total_score: float = Field(default=0.0, description="Total credit score (0-100)")
     credit_tier: str = Field(..., description="Credit tier: new_user, risky, growing, regular, power")
     credit_limit: float = Field(..., description="Approved credit limit in rupees")
-    decision: str = Field(..., description="Decision: approved, not_eligible, new_user, amount_exceeds_limit")
+    decision: str = Field(..., description="Decision: approved, not_eligible, new_user, amount_exceeds_limit, not_affordable")
     rejection_reason: Optional[str] = Field(None, description="Reason if rejected")
     purchase_amount: float = Field(default=0.0, description="Purchase amount for this transaction")
     score_breakdown: ScoreBreakdown = Field(..., description="Detailed score breakdown")
     min_transactions: int = Field(default=10, description="Minimum transactions required for approval")
+    emi_to_income_ratio: float = Field(default=0.0, description="EMI to income ratio (for affordability check)")
+    current_emi_burden: float = Field(default=0.0, description="Current monthly EMI commitments")
     error: Optional[str] = Field(None, description="Error message if any")
 
 

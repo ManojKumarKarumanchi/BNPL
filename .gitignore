@@ -151,4 +151,6 @@ venv/
 context_background.txt
 .playwright-mcp
 tasks/
+project.txt
+fixes.txt
 

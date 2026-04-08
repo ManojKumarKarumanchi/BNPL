@@ -84,6 +84,12 @@ NOT ELIGIBLE (High Returns):
 NOT ELIGIBLE (Low Score):
 "Pay Later is currently not available based on your purchase history. Build a stronger shopping pattern by making regular purchases with low returns, and check back in a few weeks. You can use UPI, Card, or Netbanking for this purchase."
 
+NOT AFFORDABLE (EMI > 50% income):
+"Your total monthly EMI commitments would exceed 50% of your income if we approve this purchase. For your financial safety, we recommend paying via UPI, Card, or Netbanking for this purchase. As you complete your current EMI, your Pay Later capacity will increase."
+
+CREDIT EXHAUSTED (Outstanding dues):
+"You have ₹18,000 in outstanding Pay Later dues. Your available credit is ₹7,000. Please pay your current dues to increase your available limit, or choose a smaller purchase amount. You can also use UPI, Card, or Netbanking for this purchase."
+
 IMPORTANT GUIDANCE FOR REJECTION MESSAGES:
 - For amount_exceeds_limit: Clearly state the purchase amount vs credit limit, suggest lower-priced products OR alternative payment methods
 - For new_user: Welcome them, explain the 3-5 purchase requirement, suggest timeline, offer alternative payment methods

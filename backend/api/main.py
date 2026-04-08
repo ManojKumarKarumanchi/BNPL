@@ -88,7 +88,7 @@ async def global_exception_handler(request, exc):
 
 
 if __name__ == "__main__":
-    print("⚠️  Warning: Direct execution not recommended!")
+    print("[WARNING] Direct execution not recommended!")
     print("Please use: cd backend && python run.py")
     print("Or run: cd backend && uvicorn api.main:app --reload")
     import sys

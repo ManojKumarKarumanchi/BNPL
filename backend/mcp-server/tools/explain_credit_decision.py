@@ -60,11 +60,31 @@ def explain_credit_decision(
             purchase_amount=purchase_amt
         )
 
-        # Call AI API (Claude or Azure OpenAI based on AI_PROVIDER config)
-        ai_client = get_ai_client()
-        narrative = ai_client.generate_narrative(prompt, max_tokens=200)
+        # Call AI API with validation to prevent hallucinations
+        # Reference: COMPREHENSIVE_AUDIT_AND_FIXES.md Section 1
+        from utils.llm_validator import validate_and_retry_narrative
 
-        logger.info(f"✅ AI narrative generated using {config.AI_PROVIDER.upper()}")
+        ai_client = get_ai_client()
+        ground_truth = {
+            'credit_limit': credit_limit,
+            'purchase_amount': purchase_amt
+        }
+
+        narrative, is_validated = validate_and_retry_narrative(
+            ai_client,
+            prompt,
+            ground_truth,
+            max_retries=2
+        )
+
+        if not is_validated:
+            logger.error(
+                f"Using unvalidated narrative for {user_id} - "
+                f"LLM may have hallucinated amounts. "
+                f"Ground truth: limit=₹{credit_limit:,.0f}, amount=₹{purchase_amt:,.0f}"
+            )
+
+        logger.info(f"AI narrative generated using {config.AI_PROVIDER.upper()} (validated={is_validated})")
 
         return CreditNarrativeResponse(
             user_id=user_id,
