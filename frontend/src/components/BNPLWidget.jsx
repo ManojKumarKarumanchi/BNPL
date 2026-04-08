@@ -194,7 +194,7 @@ const BNPLWidget = ({
             You're pre-approved for ₹{creditLimit.toLocaleString('en-IN')}
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Powered by <span className="font-semibold text-grabcredit-700">Poonawalla Fincorp</span>
+            Powered by <span className="font-semibold text-grabcredit-700">GrabCredit & Poonawalla Fincorp</span>
           </p>
 
           {/* Trust Badges */}

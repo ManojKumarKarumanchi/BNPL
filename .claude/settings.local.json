@@ -69,7 +69,9 @@
       "Bash(sqlite3 grabon_bnpl.db \"SELECT user_id, monthly_income FROM users ORDER BY monthly_income;\")",
       "Bash(sqlite3:*)",
       "Bash(chmod +x test_all_personas.sh)",
-      "Bash(./test_all_personas.sh)"
+      "Bash(./test_all_personas.sh)",
+      "WebFetch(domain:www.herofincorp.com)",
+      "WebFetch(domain:payu.in)"
     ]
   }
 }

@@ -64,8 +64,8 @@ async def check_eligibility(request: EligibilityRequest):
             # Try PayU LazyPay API first (if enabled)
             if settings.PAYU_ENABLED:
                 try:
-                    logger.info(f"🔗 Calling PayU LazyPay API for EMI calculation...")
                     payu_client = get_payu_client()
+                    logger.info(f"💳 Using PayU client: {type(payu_client).__name__}")
                     payu_result = await payu_client.calculate_emi_offers(
                         user_id=request.user_id,
                         amount=request.amount,
@@ -135,7 +135,9 @@ async def check_eligibility(request: EligibilityRequest):
             ),
             emi_options=emi_options,
             payu_transaction_id=payu_result.get("transaction_id") if settings.PAYU_ENABLED and 'payu_result' in locals() else None,
-            emi_provider="PayU LazyPay" if settings.PAYU_ENABLED and 'payu_result' in locals() and payu_result.get("status") == "success" else "GrabCredit",
+            # emi_provider: Use "GrabCredit" for demo (mock PayU client uses GrabCredit terms)
+            # Would be "PayU LazyPay" only with real PayU credentials and actual PayU terms
+            emi_provider="GrabCredit",
             score_details=credit_score.get("score_breakdown")  # Optional debug info
         )
 

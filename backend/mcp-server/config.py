@@ -31,7 +31,8 @@ MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "grabon-bnpl-mcp")
 MCP_SERVER_VERSION = os.getenv("MCP_SERVER_VERSION", "1.0.0")
 MCP_SERVER_PORT = int(os.getenv("MCP_SERVER_PORT", "8001"))
 
-# Credit tier limits
+# Credit tier limits (PayU LazyPay aligned)
+# PayU LazyPay Model: 15-day @ 0% as primary, EMI as secondary
 CREDIT_TIERS = {
     "new_user": {
         "credit_limit": 0,
@@ -44,28 +45,30 @@ CREDIT_TIERS = {
         "description": "High risk detected"
     },
     "growing": {
-        "credit_limit": 15000,
-        "emi_durations": [3, 6],
-        "description": "Growing trust"
+        "credit_limit": 10000,  # ₹10K (PayU entry level)
+        "emi_durations": [0.5, 3, 6],  # 15-day (0.5 month), 3mo, 6mo
+        "description": "Growing trust - PayU LazyPay entry tier"
     },
     "regular": {
-        "credit_limit": 25000,
-        "emi_durations": [3, 6, 9],
-        "description": "Regular user"
+        "credit_limit": 30000,  # ₹30K (PayU standard)
+        "emi_durations": [0.5, 3, 6, 9],  # 15-day + EMI options
+        "description": "Regular user - PayU LazyPay standard"
     },
     "power": {
-        "credit_limit": 50000,
-        "emi_durations": [3, 6, 9, 12],
-        "description": "VIP status"
+        "credit_limit": 100000,  # ₹100K (PayU premium)
+        "emi_durations": [0.5, 3, 6, 9, 12],  # All options including 12mo
+        "description": "VIP status - PayU LazyPay premium"
     }
 }
 
-# EMI interest rates by duration
+# EMI interest rates by duration (PayU LazyPay actual rates)
+# PayU Model: 15-day free, then 12-18% p.a. for EMI
 EMI_INTEREST_RATES = {
-    3: 0.0,    # No cost EMI
-    6: 3.2,    # 3.2% annual
-    9: 8.0,    # 8% annual
-    12: 5.6    # 5.6% annual (VIP rate)
+    0.5: 0.0,   # 15 days @ 0% (PayU LazyPay primary offering)
+    3: 12.0,    # 3 months @ 12% p.a. (PayU standard EMI rate)
+    6: 14.0,    # 6 months @ 14% p.a.
+    9: 16.0,    # 9 months @ 16% p.a.
+    12: 18.0    # 12 months @ 18% p.a. (longest tenure)
 }
 
 # Scoring weights (6-factor model)

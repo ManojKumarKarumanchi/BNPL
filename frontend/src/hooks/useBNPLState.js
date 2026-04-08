@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { orderData } from '../data/mockData';
 
 export const useBNPLState = (initialEligibility = 'approved', emiOptions = null) => {
@@ -7,6 +7,14 @@ export const useBNPLState = (initialEligibility = 'approved', emiOptions = null)
   const [showQualificationReason, setShowQualificationReason] = useState(false);
   const [eligibilityStatus, setEligibilityStatus] = useState(initialEligibility);
 
+  // Auto-select first EMI option (shortest tenure, 0% interest) when BNPL is approved
+  useEffect(() => {
+    if (eligibilityStatus === 'approved' && selectedPayment === 'grabcredit' && emiOptions && emiOptions.length > 0 && !selectedEMI) {
+      // Auto-select the first option (shortest tenure, typically 3-month @ 0%)
+      setSelectedEMI(emiOptions[0].id);
+    }
+  }, [eligibilityStatus, selectedPayment, emiOptions, selectedEMI]);
+
   // Computed values
   const isGrabCreditSelected = selectedPayment === 'grabcredit';
 
@@ -14,9 +22,12 @@ export const useBNPLState = (initialEligibility = 'approved', emiOptions = null)
     if (eligibilityStatus === 'not_eligible') return false;
     if (eligibilityStatus === 'new_user') return false;
     if (eligibilityStatus === 'loading') return false;
-    if (isGrabCreditSelected && !selectedEMI) return false;
+    if (eligibilityStatus === 'amount_exceeds_limit') return false;
+    // For BNPL, allow proceeding if approved (default EMI will be auto-selected)
+    // User can still manually change EMI before checkout
+    if (isGrabCreditSelected && eligibilityStatus === 'approved') return true;
     return true;
-  }, [eligibilityStatus, isGrabCreditSelected, selectedEMI]);
+  }, [eligibilityStatus, isGrabCreditSelected]);
 
   const finalAmount = useMemo(() => {
     if (isGrabCreditSelected && selectedEMI && emiOptions) {
@@ -30,17 +41,20 @@ export const useBNPLState = (initialEligibility = 'approved', emiOptions = null)
     if (eligibilityStatus === 'not_eligible') {
       return 'Choose another payment method';
     }
+    if (eligibilityStatus === 'amount_exceeds_limit') {
+      return 'Amount exceeds limit';
+    }
     if (eligibilityStatus === 'new_user') {
       return `Pay ₹${orderData.pricing.total.toLocaleString('en-IN')}`;
     }
     if (eligibilityStatus === 'loading') {
       return 'Please wait...';
     }
-    if (isGrabCreditSelected && selectedEMI) {
-      return 'Continue with EMI';
+    if (isGrabCreditSelected && eligibilityStatus === 'approved') {
+      return 'Continue with Pay Later';
     }
     return `Pay ₹${orderData.pricing.total.toLocaleString('en-IN')}`;
-  }, [eligibilityStatus, isGrabCreditSelected, selectedEMI]);
+  }, [eligibilityStatus, isGrabCreditSelected]);
 
   const handlePaymentSelect = (paymentId) => {
     setSelectedPayment(paymentId);

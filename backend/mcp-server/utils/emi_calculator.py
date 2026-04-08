@@ -148,13 +148,17 @@ def generate_emi_plans(
     """
     Generate EMI options based on credit tier.
 
+    PayU LazyPay Model:
+    - Primary: 15-day one-time payment @ 0% (duration: 0.5)
+    - Secondary: 3/6/9/12 month EMI @ 12-18% p.a.
+
     Args:
         purchase_amount: Purchase amount
         credit_tier: User's credit tier
         credit_limit: User's credit limit
 
     Returns:
-        List of EMI options
+        List of EMI options (15-day first, then EMI options)
     """
     tier_config = config.CREDIT_TIERS.get(credit_tier, {})
     emi_durations = tier_config.get("emi_durations", [])
@@ -167,25 +171,48 @@ def generate_emi_plans(
     for i, duration in enumerate(emi_durations, start=1):
         interest_rate = config.EMI_INTEREST_RATES.get(duration, 0)
 
-        monthly_payment = calculate_emi(purchase_amount, interest_rate, duration)
-        total_amount = monthly_payment * duration
+        # Special handling for 15-day one-time payment (duration = 0.5)
+        if duration == 0.5:
+            # One-time payment (pay full amount in 15 days)
+            from datetime import datetime, timedelta
+            due_date = (datetime.now() + timedelta(days=15)).strftime("%Y-%m-%d")
 
-        # Determine tag
-        tag = None
-        if interest_rate == 0:
-            tag = "No Cost EMI"
-        elif i == 2 and credit_tier == "regular":  # 6-month for regular users
-            tag = "Best Value"
-        elif duration == 9 and credit_tier == "power":
-            tag = "VIP Rate"
+            emi_options.append({
+                "id": i,
+                "duration": 0.5,  # 15 days (represented as 0.5 months)
+                "monthly_payment": purchase_amount,  # Full amount
+                "tag": "Pay in 15 days - No interest",  # PayU LazyPay primary tag
+                "total_amount": purchase_amount,  # Same as purchase amount
+                "interest_rate": 0.0,
+                "due_date": due_date,  # When payment is due
+                "is_one_time_payment": True  # Flag for frontend
+            })
+        else:
+            # EMI calculation for 3/6/9/12 months
+            monthly_payment = calculate_emi(purchase_amount, interest_rate, duration)
+            total_amount = monthly_payment * duration
 
-        emi_options.append({
-            "id": i,
-            "duration": duration,
-            "monthly_payment": monthly_payment,
-            "tag": tag,
-            "total_amount": round(total_amount, 2),
-            "interest_rate": interest_rate
-        })
+            # Determine tag based on duration and tier
+            tag = None
+            if interest_rate == 0:
+                tag = "No Cost EMI"
+            elif duration == 3:
+                tag = "Short EMI"
+            elif duration == 6:
+                tag = "Standard EMI"
+            elif duration == 9:
+                tag = "Flexible EMI"
+            elif duration == 12:
+                tag = "Extended EMI"
+
+            emi_options.append({
+                "id": i,
+                "duration": duration,
+                "monthly_payment": monthly_payment,
+                "tag": tag,
+                "total_amount": round(total_amount, 2),
+                "interest_rate": interest_rate,
+                "is_one_time_payment": False
+            })
 
     return emi_options

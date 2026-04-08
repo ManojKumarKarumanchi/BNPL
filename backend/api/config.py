@@ -40,15 +40,17 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_HOUR: int = int(os.getenv("RATE_LIMIT_PER_HOUR", "500"))
 
     # PayU LazyPay Integration
-    # NOTE: PayU sandbox requires actual merchant credentials from PayU
-    # Default credentials are examples only - replace with your test credentials
-    # Get credentials from: https://dashboard.payu.in/merchant-onboarding
+    # NOTE: Uses mock PayU client by default (no real API calls)
+    # To use real PayU sandbox:
+    #   1. Get credentials from: https://dashboard.payu.in/merchant-onboarding
+    #   2. Set PAYU_MERCHANT_KEY and PAYU_MERCHANT_SALT in .env
+    #   3. System automatically switches from mock to real client
     PAYU_SANDBOX_URL: str = os.getenv("PAYU_SANDBOX_URL", "https://test.payu.in")
-    PAYU_MERCHANT_KEY: str = os.getenv("PAYU_MERCHANT_KEY", "gtKFFx")
-    PAYU_MERCHANT_SALT: str = os.getenv("PAYU_MERCHANT_SALT", "4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW")
+    PAYU_MERCHANT_KEY: str = os.getenv("PAYU_MERCHANT_KEY", "gtKFFx")  # Default = mock mode
+    PAYU_MERCHANT_SALT: str = os.getenv("PAYU_MERCHANT_SALT", "4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW")  # Default = mock mode
     PAYU_MODE: str = os.getenv("PAYU_MODE", "sandbox")
-    # Set to "false" to skip PayU API calls and use local EMI calculation
-    PAYU_ENABLED: bool = os.getenv("PAYU_ENABLED", "false").lower() == "true"
+    # PayU enabled by default - uses mock client if no real credentials provided
+    PAYU_ENABLED: bool = os.getenv("PAYU_ENABLED", "true").lower() == "true"
 
     # API Base URL (for PayU callbacks)
     API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")

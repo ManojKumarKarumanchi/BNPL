@@ -421,13 +421,228 @@ class PayULazyPayClient:
         await self.client.aclose()
 
 
-# Singleton instance
+class MockPayUClient:
+    """
+    Mock PayU LazyPay client for demo/testing without real credentials.
+
+    NOTE: This demonstrates PayU's API integration architecture but uses
+    GrabCredit's BNPL terms instead of PayU LazyPay's actual terms:
+
+    GrabCredit Terms:
+    - 3-month @ 0% interest (primary offering)
+    - 6/9/12-month EMI with 3.2-8% p.a. interest
+    - Credit limits: ₹15K-₹50K
+
+    PayU LazyPay Actual Terms:
+    - 15-day @ 0% interest (primary offering)
+    - 3/6/9/12-month EMI with 12-18% p.a. interest
+    - Credit limits: ₹10K-₹100K
+
+    Why Different? GrabCredit is optimized for GrabOn's higher-ticket
+    e-commerce purchases (₹5K-₹50K) where 3-month EMI provides better
+    affordability than 15-day one-time payment.
+
+    Returns realistic PayU-format responses without calling external API.
+    Useful for:
+    - Local development without merchant credentials
+    - Automated testing
+    - Demo environments
+    """
+
+    def __init__(self):
+        logger.info("🎭 MockPayUClient initialized (GrabCredit terms, no real API calls)")
+
+    async def calculate_emi_offers(
+        self,
+        user_id: str,
+        amount: float,
+        credit_limit: float,
+        mobile: Optional[str] = None,
+        email: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Mock EMI calculation - returns realistic PayU-format response.
+
+        Simulates PayU EMI API without network calls.
+        """
+        import uuid
+        txn_id = f"MOCK_GRABON_{user_id}_{uuid.uuid4().hex[:8]}"
+
+        logger.info(f"🎭 [MOCK PayU] Calculating EMI for {user_id}, amount ₹{amount}")
+
+        # Simulate PayU EMI plans (bank-wise structure)
+        # Based on actual PayU LazyPay response format
+        mock_emi_details = {
+            "HDFC": {
+                "3": {
+                    "emi_amount": round(amount / 3, 2),
+                    "interest_rate": 0.0,
+                    "bank_interest": 0.0,
+                    "bank_name": "HDFC Bank"
+                },
+                "6": {
+                    "emi_amount": round(amount / 6 * 1.016, 2),  # 2% annual interest
+                    "interest_rate": 2.0,
+                    "bank_interest": round(amount * 0.02, 2),
+                    "bank_name": "HDFC Bank"
+                }
+            },
+            "ICICI": {
+                "9": {
+                    "emi_amount": round(amount / 9 * 1.04, 2),  # 5% annual interest
+                    "interest_rate": 5.0,
+                    "bank_interest": round(amount * 0.05, 2),
+                    "bank_name": "ICICI Bank"
+                },
+                "12": {
+                    "emi_amount": round(amount / 12 * 1.06, 2),  # 8% annual interest
+                    "interest_rate": 8.0,
+                    "bank_interest": round(amount * 0.08, 2),
+                    "bank_name": "ICICI Bank"
+                }
+            }
+        }
+
+        # Filter plans based on credit tier (mimics PayU business rules)
+        # Growing tier (₹15K limit): 3, 6 months only
+        # Regular tier (₹25K limit): 3, 6, 9 months
+        # Power tier (₹50K+ limit): all tenures
+        if credit_limit <= 15000:
+            # Remove 9 and 12 month plans
+            mock_emi_details.pop("ICICI", None)
+        elif credit_limit <= 25000:
+            # Remove 12 month plan
+            if "ICICI" in mock_emi_details:
+                mock_emi_details["ICICI"].pop("12", None)
+
+        # Parse mock response using same logic as real PayU
+        emi_plans = self._parse_payu_emi_response(mock_emi_details, amount)
+
+        logger.info(f"✅ [MOCK PayU] Generated {len(emi_plans)} EMI options for {user_id}")
+
+        return {
+            "status": "success",
+            "emi_options": emi_plans,
+            "transaction_id": txn_id,
+            "error": None
+        }
+
+    def _parse_payu_emi_response(self, emi_details: Dict, amount: float) -> List[Dict[str, Any]]:
+        """
+        Parse PayU EMI response - same as real client.
+        """
+        emi_options = []
+        plan_id = 1
+
+        for bank_code, plans in emi_details.items():
+            if not isinstance(plans, dict):
+                continue
+
+            for tenure_str, plan_data in plans.items():
+                try:
+                    tenure = int(tenure_str)
+                    monthly_emi = float(plan_data.get("emi_amount", plan_data.get("monthly_installment", 0)))
+                    interest_rate = float(plan_data.get("interest_rate", 0))
+                    total_amount = monthly_emi * tenure
+
+                    tag = None
+                    if interest_rate == 0:
+                        tag = "No Cost EMI"
+                    elif tenure == 6:
+                        tag = "Best Value"
+                    elif tenure == 9:
+                        tag = "VIP Rate"
+
+                    emi_options.append({
+                        "id": plan_id,
+                        "duration": tenure,
+                        "monthly_payment": round(monthly_emi, 2),
+                        "tag": tag,
+                        "total_amount": round(total_amount, 2),
+                        "interest_rate": interest_rate,
+                        "processing_fee": 0.0,
+                        "provider": "GrabCredit"  # GrabCredit terms, not PayU LazyPay
+                    })
+
+                    plan_id += 1
+
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Skipping invalid EMI plan: {e}")
+                    continue
+
+        emi_options.sort(key=lambda x: x["duration"])
+        return emi_options
+
+    async def initiate_checkout(
+        self,
+        transaction_id: str,
+        emi_duration: int,
+        user_id: str,
+        amount: float
+    ) -> Dict[str, Any]:
+        """Mock checkout initiation."""
+        logger.info(f"🎭 [MOCK PayU] Checkout initiated: {transaction_id}")
+        return {
+            "status": "success",
+            "checkout_url": f"https://mock-payu.grabon.in/checkout/{transaction_id}",
+            "mihpayid": f"MOCK_MIHPAY_{transaction_id}",
+            "error": None
+        }
+
+    async def check_transaction_status(
+        self,
+        transaction_id: str
+    ) -> Dict[str, Any]:
+        """Mock transaction status check."""
+        logger.info(f"🎭 [MOCK PayU] Status check: {transaction_id}")
+        return {
+            "status": "success",
+            "amount": 12499.0,
+            "bank_ref_num": f"MOCK_BANK_REF_{transaction_id}",
+            "error": None
+        }
+
+    async def close(self):
+        """No-op for mock client."""
+        pass
+
+
+# Factory pattern for PayU client selection
 _payu_client: Optional[PayULazyPayClient] = None
+_mock_payu_client: Optional[MockPayUClient] = None
 
 
-def get_payu_client() -> PayULazyPayClient:
-    """Get PayU LazyPay client singleton."""
-    global _payu_client
-    if _payu_client is None:
-        _payu_client = PayULazyPayClient()
-    return _payu_client
+def get_payu_client():
+    """
+    Get PayU client (real or mock) based on configuration.
+
+    Returns MockPayUClient if:
+    - PAYU_ENABLED=false (explicit disable)
+    - PAYU_MERCHANT_KEY is default/test value (no real credentials)
+
+    Returns real PayULazyPayClient if:
+    - PAYU_ENABLED=true AND valid merchant credentials provided
+
+    This allows seamless development without PayU merchant account.
+    """
+    global _payu_client, _mock_payu_client
+
+    # Check if real PayU credentials are configured
+    has_real_credentials = (
+        settings.PAYU_ENABLED and
+        settings.PAYU_MERCHANT_KEY not in ["gtKFFx", "", None] and  # Not default/empty
+        settings.PAYU_MERCHANT_SALT not in ["4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW", "", None]
+    )
+
+    if has_real_credentials:
+        # Use real PayU client
+        if _payu_client is None:
+            logger.info("🔗 Initializing REAL PayU LazyPay client")
+            _payu_client = PayULazyPayClient()
+        return _payu_client
+    else:
+        # Use mock PayU client
+        if _mock_payu_client is None:
+            logger.info("🎭 Initializing MOCK PayU client (no real credentials)")
+            _mock_payu_client = MockPayUClient()
+        return _mock_payu_client
