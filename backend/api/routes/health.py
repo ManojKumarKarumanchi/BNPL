@@ -1,8 +1,8 @@
 """Health check routes."""
 
 from fastapi import APIRouter
-from schemas.response_schemas import HealthResponse
-from config import settings
+from api.schemas.response_schemas import HealthResponse
+from api.config import settings
 
 router = APIRouter(tags=["health"])
 

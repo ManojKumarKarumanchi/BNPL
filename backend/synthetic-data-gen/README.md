@@ -1,100 +1,485 @@
-# GrabOn BNPL Synthetic Data Generator
+# Synthetic Transaction Data Generator
 
-Generate realistic transaction data for 5 user personas matching frontend expectations.
+Generates realistic transaction data for 5 user personas using Evidently AI and Faker.
 
 ## Overview
 
-This module uses Evidently AI and Faker to create authentic GrabOn transaction patterns for:
+This module creates a complete SQLite database with synthetic users, transactions, and merchants that mimic real-world e-commerce behavior patterns. The generated data is used by the MCP server for credit scoring and BNPL eligibility assessment.
 
-- **Rajesh Kumar** (USR_RAJESH) - New user, 0 transactions
-- **Priya Sharma** (USR_PRIYA) - Risky user, 8 transactions, 18% returns
-- **Amit Patel** (USR_AMIT) - Growing user, 25 transactions
-- **Sneha Reddy** (USR_SNEHA) - Regular user, 48 transactions
-- **Vikram Singh** (USR_VIKRAM) - Power user, 237 transactions
+## Quick Start
 
-## Installation
+### Prerequisites
+
+- Python 3.11+
+- Backend dependencies installed
+
+### Installation
 
 ```bash
-cd synthetic-data-gen
-pip install -r requirements.txt
+cd backend/synthetic-data-gen
+pip install -r ../requirements.txt
 ```
 
-## Usage
-
-### Generate All Data
+### Generate Data
 
 ```bash
 python main.py
 ```
 
-This will:
-1. Create `output/grabon_bnpl.db` SQLite database
-2. Generate 6 merchants (Amazon, Flipkart, Myntra, etc.)
-3. Create 5 user personas
-4. Generate realistic transactions (318 total)
-5. Create validation report in `output/generation_report.json`
-
-### Output
-
+**Output:**
 ```
-output/
-├── grabon_bnpl.db           # SQLite database
-└── generation_report.json   # Validation report
+✅ Generated 5 users (Rajesh, Priya, Amit, Sneha, Vikram)
+✅ Generated 318 total transactions
+✅ Database saved: output/grabon_bnpl.db
+✅ Generation report: output/generation_report.json
 ```
+
+**Files Created:**
+- `output/grabon_bnpl.db` - SQLite database with all data
+- `output/generation_report.json` - Statistics and metadata
+
+---
+
+## 5 User Personas
+
+The generator creates 5 distinct personas based on `config.py`:
+
+### 1. Rajesh Kumar (New User)
+
+**Profile:**
+- **User ID:** USR_RAJESH
+- **Transactions:** 0
+- **Member Since:** 7 days ago (fraud velocity check trigger)
+- **Expected Tier:** New User (blocked by fraud check)
+
+**Purpose:** Test fraud velocity blocking (<7 days = auto-reject)
+
+---
+
+### 2. Priya Sharma (Risky User)
+
+**Profile:**
+- **User ID:** USR_PRIYA
+- **Transactions:** 8
+- **Return Rate:** 18% (high, triggers rejection)
+- **Member Since:** 4 months ago
+- **Expected Tier:** Risky (not eligible)
+
+**Purpose:** Test high return rate rejection (>10% threshold)
+
+**Transaction Pattern:**
+- Small orders (~₹500-800)
+- Frequent returns
+- Beauty, Electronics, Fashion categories
+
+---
+
+### 3. Amit Patel (Growing User)
+
+**Profile:**
+- **User ID:** USR_AMIT
+- **Transactions:** 25
+- **Return Rate:** 4%
+- **Avg Order Value:** ₹1,850
+- **Member Since:** 4 months ago
+- **Expected Tier:** Growing (₹15,000 limit)
+
+**Purpose:** Test emerging creditworthy user
+
+**Transaction Pattern:**
+- Moderate purchase frequency (6 txns/month)
+- Low return rate
+- Diverse categories (Food, Health, Fashion, Electronics)
+- Smart coupon usage (78%)
+
+---
+
+### 4. Sneha Reddy (Regular User)
+
+**Profile:**
+- **User ID:** USR_SNEHA
+- **Transactions:** 48
+- **Return Rate:** 2%
+- **Avg Order Value:** ₹2,850
+- **Member Since:** 8 months ago
+- **Expected Tier:** Regular (₹25,000 limit)
+
+**Purpose:** Test established good behavior
+
+**Transaction Pattern:**
+- Consistent purchase frequency (6 txns/month)
+- Very low return rate
+- Balanced spending across categories
+- Moderate coupon usage
+
+---
+
+### 5. Vikram Singh (Power User)
+
+**Profile:**
+- **User ID:** USR_VIKRAM
+- **Transactions:** 237
+- **Return Rate:** 0%
+- **Avg Order Value:** ₹4,200
+- **Member Since:** 18 months ago
+- **Expected Tier:** Power (₹50,000 limit)
+
+**Purpose:** Test VIP user with excellent track record
+
+**Transaction Pattern:**
+- Very high purchase frequency (13 txns/month)
+- Zero returns
+- Premium order values
+- Diverse shopping across all categories
+- Consistent GMV growth trajectory
+
+---
 
 ## Database Schema
 
-### Tables
+### Users Table
 
-- **users**: 5 personas
-- **merchants**: 6 real GrabOn merchants
-- **transactions**: 318 transactions across all personas
-
-### Key Features
-
-✅ Temporal patterns (transactions distributed over 6-18 months)  
-✅ Realistic GMV distribution (log-normal)  
-✅ Merchant preferences (Amazon 35%, Flipkart 30%)  
-✅ Category preferences (Fashion 24%, Electronics 10%)  
-✅ Coupon redemption rates (45% risky → 98% power user)  
-✅ Return behavior (0% perfect → 18% risky)  
-✅ Fraud signals (new user <7 days)
-
-## Validation
-
-After generation, verify:
-
-```bash
-sqlite3 output/grabon_bnpl.db
-
-# Check counts
-SELECT user_id, COUNT(*) FROM transactions GROUP BY user_id;
-
-# Check Vikram's stats (should be 237 txns, 0% returns)
-SELECT
-    COUNT(*) as txn_count,
-    AVG(final_amount) as avg_order,
-    SUM(CASE WHEN is_returned = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as return_pct
-FROM transactions
-WHERE user_id = 'USR_VIKRAM';
+```sql
+CREATE TABLE users (
+    user_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    member_since DATE NOT NULL,
+    account_status TEXT DEFAULT 'active'
+);
 ```
 
-Expected output:
-- Txn count: 237
-- Avg order: ~₹4,200
-- Return %: 0.0%
+**Columns:**
+- `user_id` - Unique identifier (e.g., USR_AMIT)
+- `name` - Full name (generated by Faker)
+- `email` - Email address (lowercase user_id@grabon.in)
+- `member_since` - Registration date
+- `account_status` - active/suspended/closed
+
+### Transactions Table
+
+```sql
+CREATE TABLE transactions (
+    transaction_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    merchant_id TEXT NOT NULL,
+    category TEXT NOT NULL,
+    order_value REAL NOT NULL,
+    discount_amount REAL DEFAULT 0,
+    final_amount REAL NOT NULL,
+    coupon_used TEXT,
+    payment_mode TEXT,
+    is_returned BOOLEAN DEFAULT 0,
+    transaction_date DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+```
+
+**Columns:**
+- `transaction_id` - Unique transaction ID (TXN_<hash>)
+- `user_id` - Foreign key to users table
+- `merchant_id` - Merchant identifier (MERCH_001, etc.)
+- `category` - Product category (Electronics, Fashion, Food, etc.)
+- `order_value` - Original price before discount
+- `discount_amount` - Discount applied
+- `final_amount` - Final paid amount (order_value - discount)
+- `coupon_used` - Coupon code if any (GRAB20, SAVE50, etc.)
+- `payment_mode` - UPI, Card, Netbanking, Wallet
+- `is_returned` - Boolean indicating if order was returned
+- `transaction_date` - Transaction timestamp
+
+### Merchants Table
+
+```sql
+CREATE TABLE merchants (
+    merchant_id TEXT PRIMARY KEY,
+    merchant_name TEXT NOT NULL,
+    avg_discount_percent REAL,
+    deal_count INTEGER DEFAULT 0
+);
+```
+
+**Sample Merchants:**
+- Amazon (Electronics, avg 15% discount)
+- Flipkart (Electronics, avg 20% discount)
+- Myntra (Fashion, avg 40% discount)
+- Nykaa (Beauty, avg 25% discount)
+- Zomato (Food, avg 30% discount)
+- etc.
+
+---
 
 ## Configuration
 
-Edit `config.py` to modify:
-- Persona characteristics (avg order value, return rates)
-- Merchant data (deal counts, discounts)
-- Category distributions
-- Coupon codes
+### Persona Configuration (`config.py`)
 
-## Next Steps
+Each persona is defined with:
 
-After data generation:
-1. Verify `output/grabon_bnpl.db` exists
-2. Check `generation_report.json` for validation
-3. Proceed to MCP server setup: `cd ../mcp-server`
+```python
+PERSONA_CONFIGS = {
+    "USR_AMIT": PersonaConfig(
+        name="Amit Patel",
+        target_transactions=25,
+        return_rate=0.04,          # 4% returns
+        member_since_days_ago=120, # 4 months
+        avg_order_value=1850,
+        category_preferences={      # Weighted category distribution
+            "Food": 0.3,
+            "Health": 0.25,
+            "Fashion": 0.25,
+            "Electronics": 0.2
+        },
+        coupon_usage_rate=0.78,    # 78% of orders use coupons
+        payment_modes={             # Payment method distribution
+            "UPI": 0.6,
+            "Card": 0.3,
+            "Netbanking": 0.1
+        }
+    ),
+    # ... other personas
+}
+```
+
+### Category Distribution
+
+**Available Categories:**
+- Electronics (smartphones, laptops, headphones)
+- Fashion (clothing, shoes, accessories)
+- Food (restaurants, groceries)
+- Beauty (cosmetics, skincare)
+- Health (supplements, medical)
+- Travel (flights, hotels)
+
+### Transaction Generation Logic
+
+**Evidently AI Synthetic Data:**
+- Uses log-normal distribution for realistic transaction amounts
+- Temporal patterns (more recent transactions)
+- Category co-occurrence (Fashion buyers also buy Beauty)
+- Merchant preferences (repeat purchases from favorite merchants)
+
+**Faker for Realistic Data:**
+- Names, emails, addresses
+- Transaction IDs, coupon codes
+- Payment references
+
+---
+
+## File Structure
+
+```
+synthetic-data-gen/
+├── main.py                    # Entry point
+├── config.py                  # Persona configurations
+├── generators/
+│   ├── user_generator.py      # User profile generation
+│   ├── transaction_generator.py  # Transaction generation
+│   └── merchant_generator.py  # Merchant catalog
+├── output/
+│   ├── grabon_bnpl.db        # Generated SQLite database
+│   └── generation_report.json # Statistics
+└── README.md                  # This file
+```
+
+---
+
+## Customization
+
+### Add New Persona
+
+Edit `config.py`:
+
+```python
+PERSONA_CONFIGS["USR_CUSTOM"] = PersonaConfig(
+    name="Custom User",
+    target_transactions=50,
+    return_rate=0.05,
+    member_since_days_ago=180,
+    avg_order_value=3000,
+    category_preferences={
+        "Electronics": 0.5,
+        "Fashion": 0.3,
+        "Beauty": 0.2
+    },
+    coupon_usage_rate=0.85,
+    payment_modes={
+        "UPI": 0.7,
+        "Card": 0.2,
+        "Wallet": 0.1
+    }
+)
+```
+
+### Modify Transaction Volume
+
+```python
+# In config.py
+target_transactions=100  # Increase from 25
+```
+
+### Change Return Rate
+
+```python
+return_rate=0.12  # 12% (will trigger rejection at >10%)
+```
+
+### Adjust Time Range
+
+```python
+member_since_days_ago=365  # 1 year of history
+```
+
+---
+
+## Verification
+
+### Check Generated Data
+
+```bash
+# Connect to database
+sqlite3 output/grabon_bnpl.db
+
+# Verify users
+SELECT user_id, name, member_since FROM users;
+
+# Check transaction count per user
+SELECT user_id, COUNT(*) as txns 
+FROM transactions 
+GROUP BY user_id;
+
+# Verify return rates
+SELECT 
+    user_id, 
+    COUNT(*) as total_txns,
+    SUM(CASE WHEN is_returned = 1 THEN 1 ELSE 0 END) as returns,
+    ROUND(SUM(CASE WHEN is_returned = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as return_rate
+FROM transactions
+GROUP BY user_id;
+```
+
+### Expected Output
+
+```
+USR_RAJESH|Rajesh Kumar|2026-04-01
+USR_PRIYA|Priya Sharma|2025-12-10
+USR_AMIT|Amit Patel|2025-12-01
+USR_SNEHA|Sneha Reddy|2024-08-15
+USR_VIKRAM|Vikram Singh|2024-10-15
+
+user_id     total_txns  returns  return_rate
+USR_RAJESH  0           0        0.0
+USR_PRIYA   8           1-2      12.5-18.0
+USR_AMIT    25          1        4.0
+USR_SNEHA   48          1        2.0
+USR_VIKRAM  237         0        0.0
+```
+
+---
+
+## Generation Report
+
+After running `main.py`, check `output/generation_report.json`:
+
+```json
+{
+  "generation_timestamp": "2026-04-08T15:30:45",
+  "total_users": 5,
+  "total_transactions": 318,
+  "total_merchants": 25,
+  "personas": {
+    "USR_AMIT": {
+      "transactions": 25,
+      "return_rate": 0.04,
+      "avg_order_value": 1847.32,
+      "member_since": "2025-12-01",
+      "categories": ["Food", "Health", "Fashion", "Electronics"]
+    }
+  }
+}
+```
+
+---
+
+## Troubleshooting
+
+### Database Already Exists
+
+Delete and regenerate:
+```bash
+rm output/grabon_bnpl.db
+python main.py
+```
+
+### Wrong Transaction Count
+
+Check `config.py` `target_transactions` values.
+
+### Return Rate Doesn't Match
+
+Return rate has some randomness. Run multiple times for exact match, or:
+```python
+# In transaction_generator.py, set exact return logic
+is_returned = random.random() < persona_config.return_rate
+```
+
+### Dates in Future
+
+Check system clock. Generator uses `datetime.now()` for calculations.
+
+---
+
+## Testing with MCP Server
+
+After generating data:
+
+```bash
+cd ../mcp-server
+python server.py
+
+# Test profile fetch
+get_user_profile("USR_AMIT")
+
+# Test credit scoring
+calculate_credit_score("USR_AMIT", 12499)
+```
+
+---
+
+## Production Considerations
+
+### Real Data Migration
+
+For production, replace synthetic data with:
+1. Real user profiles from production database
+2. Actual transaction history (last 6-12 months)
+3. Merchant integrations via APIs
+
+### Data Privacy
+
+Synthetic data is GDPR/PII-safe:
+- No real user information
+- Faker-generated names/emails
+- Can be shared with partners without privacy concerns
+
+### Performance
+
+- 5 users, 318 transactions: <1 second generation time
+- 100 users, 10,000 transactions: ~5 seconds
+- SQLite suitable for <100K transactions
+- Consider PostgreSQL for production scale
+
+---
+
+## License
+
+MIT License - GrabOn BNPL Project
+
+---
+
+## Support
+
+For issues with data generation:
+1. Check `config.py` persona configurations
+2. Verify Evidently AI and Faker versions
+3. Check `output/generation_report.json` for statistics
+4. Inspect database with `sqlite3 output/grabon_bnpl.db`

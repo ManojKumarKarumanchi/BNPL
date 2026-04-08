@@ -149,3 +149,6 @@ venv/
 
 # Optional
 context_background.txt
+.playwright-mcp
+tasks/
+

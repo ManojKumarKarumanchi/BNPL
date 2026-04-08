@@ -49,37 +49,45 @@ class MCPClient:
             parameters: Tool parameters
 
         Returns:
-            Tool execution result
+            Tool execution result as dictionary
         """
         if tool_name not in self.tools:
             raise ValueError(f"Unknown tool: {tool_name}")
 
         tool_func = self.tools[tool_name]
 
-        # Call the synchronous function
+        # Call the synchronous function and get Pydantic model result
         # (FastAPI will handle this in a thread pool)
         if tool_name == "get_user_profile_tool":
-            return tool_func(parameters["user_id"])
+            result = tool_func(parameters["user_id"])
 
         elif tool_name == "calculate_credit_score_tool":
-            return tool_func(
+            result = tool_func(
                 parameters["user_id"],
                 parameters.get("purchase_amount", 0)
             )
 
         elif tool_name == "generate_emi_options_tool":
-            return tool_func(
+            result = tool_func(
                 parameters["credit_tier"],
                 parameters["purchase_amount"],
                 parameters["credit_limit"]
             )
 
         elif tool_name == "explain_credit_decision_tool":
-            return tool_func(
+            result = tool_func(
                 parameters["user_id"],
                 parameters["credit_score_result"],
                 parameters["user_profile"]
             )
+
+        # Convert Pydantic model to dictionary if it has model_dump method
+        if hasattr(result, 'model_dump'):
+            return result.model_dump()
+        elif hasattr(result, 'dict'):
+            return result.dict()
+        else:
+            return result
 
     async def close(self):
         """Close client (no-op for direct calls)."""

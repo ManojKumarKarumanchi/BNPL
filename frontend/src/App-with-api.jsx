@@ -35,6 +35,7 @@ function App() {
 
   // Demo: Persona switcher for testing
   const [showPersonaSwitcher, setShowPersonaSwitcher] = useState(true);
+  const [lastFetchedUserId, setLastFetchedUserId] = useState(null);
 
   // Check backend connectivity on mount
   useEffect(() => {
@@ -53,8 +54,14 @@ function App() {
 
   // Fetch real data from API
   const handleFetchFromAPI = async (userId) => {
+    // Prevent duplicate requests
+    if (isLoading || lastFetchedUserId === userId) {
+      return;
+    }
+
     setIsLoading(true);
     setApiError(null);
+    setLastFetchedUserId(userId);
 
     try {
       const result = await checkEligibility(
@@ -73,6 +80,10 @@ function App() {
     } catch (error) {
       setApiError(error.message);
       console.error('❌ API Error:', error);
+      // Fallback to mock data on error if not using API mode
+      if (!useRealAPI) {
+        setActivePersona(userPersonas[currentPersona]);
+      }
     } finally {
       setIsLoading(false);
     }

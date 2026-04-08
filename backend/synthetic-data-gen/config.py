@@ -201,4 +201,10 @@ CREDIT_TIER_MAPPING = {
 }
 
 # Database configuration
-DB_PATH = "C:/Users/ManojKumarKarumanchi/local/BNPL/backend/synthetic-data-gen/output/grabon_bnpl.db"
+import os
+from pathlib import Path
+
+DB_PATH = os.getenv(
+    "DATABASE_PATH",
+    str(Path(__file__).parent / "output" / "grabon_bnpl.db")
+)

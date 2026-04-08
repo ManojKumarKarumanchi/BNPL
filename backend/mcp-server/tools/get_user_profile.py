@@ -6,9 +6,10 @@ Fetches user data and transaction history from database.
 from datetime import datetime
 from typing import Dict, List, Any
 from db.manager import get_db
+from models import UserProfileResponse
 
 
-def get_user_profile(user_id: str) -> Dict[str, Any]:
+def get_user_profile(user_id: str) -> UserProfileResponse:
     """
     Fetch user profile and transaction history.
 
@@ -16,18 +17,7 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
         user_id: User ID (e.g., "USR_SNEHA")
 
     Returns:
-        {
-            "user_id": str,
-            "name": str,
-            "email": str,
-            "member_since": str,
-            "total_purchases": int,
-            "avg_order_value": float,
-            "return_rate": float,
-            "categories": List[str],
-            "transactions": List[Dict],
-            "error": None
-        }
+        UserProfileResponse with transaction history and error field if failed
     """
     db = get_db()
 
@@ -39,10 +29,10 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
         )
 
         if not user:
-            return {
-                "error": f"User not found: {user_id}",
-                "user_id": user_id
-            }
+            return UserProfileResponse(
+                user_id=user_id,
+                error=f"User not found: {user_id}"
+            )
 
         # Fetch all transactions for user
         transactions = db.execute_query(
@@ -80,21 +70,21 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
         )
         unique_categories = list(set(txn["category"] for txn in transactions_list))
 
-        return {
-            "user_id": user["user_id"],
-            "name": user["name"],
-            "email": user["email"],
-            "member_since": user["member_since"],
-            "total_purchases": total_purchases,
-            "avg_order_value": round(avg_order_value, 2),
-            "return_rate": round(return_rate, 4),
-            "categories": unique_categories,
-            "transactions": transactions_list,
-            "error": None
-        }
+        return UserProfileResponse(
+            user_id=user["user_id"],
+            name=user["name"],
+            email=user["email"],
+            member_since=user["member_since"],
+            total_purchases=total_purchases,
+            avg_order_value=round(avg_order_value, 2),
+            return_rate=round(return_rate, 4),
+            categories=unique_categories,
+            transactions=transactions_list,
+            error=None
+        )
 
     except Exception as e:
-        return {
-            "error": f"Database error: {str(e)}",
-            "user_id": user_id
-        }
+        return UserProfileResponse(
+            user_id=user_id,
+            error=f"Database error: {str(e)}"
+        )

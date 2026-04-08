@@ -13,14 +13,23 @@ DB_PATH = os.getenv(
     str(Path(__file__).parent.parent / "synthetic-data-gen" / "output" / "grabon_bnpl.db")
 )
 
+# AI Provider Configuration
+AI_PROVIDER = os.getenv("AI_PROVIDER", "claude")  # Options: "claude", "azure"
+
 # Claude API configuration
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = "claude-sonnet-4-5"
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5")
+
+# Azure OpenAI configuration
+AZURE_AI_PROJECT_ENDPOINT = os.getenv("AZURE_AI_PROJECT_ENDPOINT", "")
+AZURE_AI_MODEL_DEPLOYMENT_NAME = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-4")
+AZURE_API_KEY = os.getenv("AZURE_API_KEY", "")
+AZURE_API_VERSION = os.getenv("AZURE_API_VERSION", "2025-04-01-preview")
 
 # MCP Server configuration
-MCP_SERVER_NAME = "grabon-bnpl-mcp"
-MCP_SERVER_VERSION = "1.0.0"
-MCP_SERVER_PORT = 8001
+MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "grabon-bnpl-mcp")
+MCP_SERVER_VERSION = os.getenv("MCP_SERVER_VERSION", "1.0.0")
+MCP_SERVER_PORT = int(os.getenv("MCP_SERVER_PORT", "8001"))
 
 # Credit tier limits
 CREDIT_TIERS = {
@@ -75,3 +84,7 @@ FRAUD_THRESHOLDS = {
     "max_return_rate": 0.10,      # >10% return rate = rejection
     "min_transactions": 3          # Minimum txns for growing tier
 }
+
+# Logging Configuration
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_FILE = os.getenv("LOG_FILE", "logs/mcp-server.log")

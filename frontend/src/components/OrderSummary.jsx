@@ -17,7 +17,7 @@ const OrderSummary = () => {
         <div className="flex-shrink-0 relative">
           <img
             src={product.image}
-            alt={product.title}
+            alt={`${product.title} - Product image from ${product.merchant}`}
             className="w-20 h-20 rounded-lg object-cover shadow-sm"
           />
           {product.grabon_exclusive && (

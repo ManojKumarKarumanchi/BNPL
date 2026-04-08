@@ -1,10 +1,33 @@
-fastapi
-fastmcp
-uvicorn
-sqlalchemy
-psycopg2-binary
-ollama
-openai
-python-dotenv
-asyncio
-python-multipart
+# GrabCredit BNPL Backend Dependencies
+# Install: pip install -r requirements.txt
+
+# Core Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# MCP Server
+fastmcp==1.2.0
+mcp==1.26.0
+
+# AI Integration
+openai==1.59.8  # Azure OpenAI integration
+
+# HTTP Client
+httpx==0.28.1
+
+# Database
+sqlalchemy==2.0.36
+
+# Data Processing
+pandas==2.2.3
+numpy==2.2.2
+
+# Synthetic Data Generation
+evidently==0.7.21
+faker==33.1.0
+
+# Configuration & Validation
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+python-multipart==0.0.20

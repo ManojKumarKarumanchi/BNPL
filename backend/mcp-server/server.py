@@ -12,6 +12,13 @@ from tools.get_user_profile import get_user_profile
 from tools.calculate_credit_score import calculate_credit_score
 from tools.generate_emi_options import generate_emi_options
 from tools.explain_credit_decision import explain_credit_decision
+from models import (
+    UserProfileResponse,
+    CreditScoreResponse,
+    EMIOptionsResponse,
+    CreditNarrativeResponse,
+    HealthCheckResponse
+)
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -45,7 +52,7 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-def get_user_profile_tool(user_id: str) -> dict:
+def get_user_profile_tool(user_id: str) -> UserProfileResponse:
     """
     Fetch user profile and transaction history.
 
@@ -60,7 +67,7 @@ def get_user_profile_tool(user_id: str) -> dict:
 
 
 @mcp.tool()
-def calculate_credit_score_tool(user_id: str, purchase_amount: float = 0) -> dict:
+def calculate_credit_score_tool(user_id: str, purchase_amount: float = 0) -> CreditScoreResponse:
     """
     Calculate credit score and eligibility using 6-factor model.
 
@@ -88,7 +95,7 @@ def generate_emi_options_tool(
     credit_tier: str,
     purchase_amount: float,
     credit_limit: float
-) -> dict:
+) -> EMIOptionsResponse:
     """
     Generate EMI options based on credit tier.
 
@@ -112,9 +119,10 @@ def generate_emi_options_tool(
 @mcp.tool()
 def explain_credit_decision_tool(
     user_id: str,
-    credit_score_result: dict,
-    user_profile: dict
-) -> dict:
+    credit_score_result: CreditScoreResponse,
+    user_profile: UserProfileResponse,
+    purchase_amount: float = 0
+) -> CreditNarrativeResponse:
     """
     Generate personalized credit decision narrative using Claude API.
 
@@ -122,37 +130,51 @@ def explain_credit_decision_tool(
         user_id: User ID
         credit_score_result: Result from calculate_credit_score_tool
         user_profile: Result from get_user_profile_tool
+        purchase_amount: Current purchase amount for context (optional)
 
     Returns:
         AI-generated explanation (2-3 sentences, specific metrics)
     """
-    print(f"✍️  Generating AI narrative for {user_id}...")
-    return explain_credit_decision(user_id, credit_score_result, user_profile)
+    print(f"✍️  Generating AI narrative for {user_id} (amount: ₹{purchase_amount:.2f})...")
+    return explain_credit_decision(user_id, credit_score_result, user_profile, purchase_amount)
 
 
 # Health check endpoint
 @mcp.tool()
-def health_check() -> dict:
+def health_check() -> HealthCheckResponse:
     """Check MCP server health and database connectivity."""
     from db.manager import get_db
 
     try:
         db = get_db()
-        result = db.execute_one("SELECT COUNT(*) as count FROM users")
-        user_count = dict(result)["count"]
 
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "users": user_count,
-            "server": config.MCP_SERVER_NAME,
-            "version": config.MCP_SERVER_VERSION
-        }
+        # Get user count
+        user_result = db.execute_one("SELECT COUNT(*) as count FROM users")
+        user_count = dict(user_result)["count"]
+
+        # Get transaction count
+        txn_result = db.execute_one("SELECT COUNT(*) as count FROM transactions")
+        txn_count = dict(txn_result)["count"]
+
+        return HealthCheckResponse(
+            status="healthy",
+            database="connected",
+            users=user_count,
+            transactions=txn_count,
+            server=config.MCP_SERVER_NAME,
+            version=config.MCP_SERVER_VERSION,
+            error=None
+        )
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        return HealthCheckResponse(
+            status="unhealthy",
+            database="disconnected",
+            users=0,
+            transactions=0,
+            server=config.MCP_SERVER_NAME,
+            version=config.MCP_SERVER_VERSION,
+            error=str(e)
+        )
 
 
 if __name__ == "__main__":

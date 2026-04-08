@@ -1,7 +1,20 @@
 import { motion } from 'framer-motion';
 
 const EMIOptionCard = ({ option, isSelected, onSelect, isDisabled = false }) => {
-  const { id, duration, monthlyPayment, tag, totalAmount } = option;
+  // Handle both camelCase (frontend) and snake_case (API) property names
+  const {
+    id,
+    duration,
+    monthlyPayment,
+    monthly_payment,
+    tag,
+    totalAmount,
+    total_amount
+  } = option || {};
+
+  // Use camelCase first, fallback to snake_case, then to 0
+  const displayMonthlyPayment = monthlyPayment || monthly_payment || 0;
+  const displayTotalAmount = totalAmount || total_amount || 0;
 
   return (
     <motion.button
@@ -9,6 +22,8 @@ const EMIOptionCard = ({ option, isSelected, onSelect, isDisabled = false }) => 
       disabled={isDisabled}
       whileHover={!isDisabled ? { scale: 1.02 } : {}}
       whileTap={!isDisabled ? { scale: 0.98 } : {}}
+      aria-label={`Select ${duration} month EMI plan, ${displayMonthlyPayment.toLocaleString('en-IN')} rupees per month`}
+      aria-pressed={isSelected}
       className={`
         relative p-4 rounded-lg border-2 transition-all duration-200 text-left w-full
         ${isSelected
@@ -43,14 +58,14 @@ const EMIOptionCard = ({ option, isSelected, onSelect, isDisabled = false }) => 
       {/* Monthly Payment */}
       <div className="mb-1">
         <span className="text-2xl font-bold text-gray-900">
-          ₹{monthlyPayment.toLocaleString('en-IN')}
+          ₹{displayMonthlyPayment.toLocaleString('en-IN')}
         </span>
         <span className="text-sm text-gray-500">/mo</span>
       </div>
 
       {/* Total Amount */}
       <div className="text-xs text-gray-500">
-        Total: ₹{totalAmount.toLocaleString('en-IN')}
+        Total: ₹{displayTotalAmount.toLocaleString('en-IN')}
       </div>
 
       {/* Selection Indicator */}

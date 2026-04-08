@@ -3,15 +3,21 @@ MCP Tool: Calculate Credit Score
 Applies 6-factor scoring model to user profile.
 """
 
+import logging
 from typing import Dict, Any
 from tools.get_user_profile import get_user_profile
 from utils.scoring_engine import CreditScoringEngine
+from models import CreditScoreResponse, ScoreBreakdown
+from validators import validate_user_id, validate_purchase_amount, ValidationError
+import config
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_credit_score(
     user_id: str,
     purchase_amount: float = 0
-) -> Dict[str, Any]:
+) -> CreditScoreResponse:
     """
     Calculate credit score and eligibility for user.
 
@@ -20,43 +26,97 @@ def calculate_credit_score(
         purchase_amount: Purchase amount for this transaction (optional)
 
     Returns:
-        {
-            "user_id": str,
-            "credit_tier": str,  # "new_user", "risky", "growing", "regular", "power"
-            "credit_limit": float,
-            "decision": str,  # "approved", "not_eligible", "new_user"
-            "total_score": float,
-            "rejection_reason": str | None,
-            "score_breakdown": {
-                "purchase_frequency": float,
-                "return_behavior": float,
-                "gmv_trajectory": float,
-                "category_diversity": float,
-                "coupon_redemption": float,
-                "fraud_check": float
-            },
-            "error": None
-        }
+        CreditScoreResponse with score breakdown and error field if failed
     """
-    # Fetch user profile
-    user_profile = get_user_profile(user_id)
+    try:
+        # Validate inputs
+        validate_user_id(user_id)
+        if purchase_amount > 0:
+            validate_purchase_amount(purchase_amount)
 
-    if user_profile.get("error"):
-        return {
-            "error": user_profile["error"],
-            "user_id": user_id
-        }
+        logger.info(f"Calculating credit score for user: {user_id}, amount: ₹{purchase_amount}")
 
-    # Initialize scoring engine
-    scoring_engine = CreditScoringEngine()
+        # Fetch user profile
+        user_profile = get_user_profile(user_id)
 
-    # Calculate credit score
-    score_result = scoring_engine.calculate_composite_score(
-        user_profile=user_profile,
-        transactions=user_profile["transactions"]
-    )
+        if user_profile.error:
+            logger.warning(f"User profile error for {user_id}: {user_profile.error}")
+            return CreditScoreResponse(
+                user_id=user_id,
+                credit_tier="risky",
+                credit_limit=0.0,
+                decision="not_eligible",
+                score_breakdown=ScoreBreakdown(
+                    purchase_frequency=0.0,
+                    return_behavior=0.0,
+                    gmv_trajectory=0.0,
+                    category_diversity=0.0,
+                    coupon_redemption=0.0,
+                    fraud_check=0.0
+                ),
+                error=user_profile.error
+            )
 
-    # Add user_id to result
-    score_result["user_id"] = user_id
+        # Initialize scoring engine
+        scoring_engine = CreditScoringEngine()
 
-    return score_result
+        # Calculate credit score (with purchase amount validation)
+        score_result = scoring_engine.calculate_composite_score(
+            user_profile=user_profile.model_dump(),
+            transactions=user_profile.transactions,
+            purchase_amount=purchase_amount
+        )
+
+        decision = score_result['decision']
+        logger.info(f"Credit score calculated: {score_result.get('total_score', 0.0)}, tier: {score_result['credit_tier']}, decision: {decision}")
+
+        # Create Pydantic response
+        return CreditScoreResponse(
+            user_id=user_id,
+            total_score=score_result.get("total_score", 0.0),
+            credit_tier=score_result["credit_tier"],
+            credit_limit=score_result["credit_limit"],
+            decision=score_result["decision"],
+            rejection_reason=score_result.get("rejection_reason"),
+            purchase_amount=score_result.get("purchase_amount", purchase_amount),
+            score_breakdown=ScoreBreakdown(**score_result["score_breakdown"]),
+            min_transactions=config.FRAUD_THRESHOLDS.get("min_transactions", 10),
+            error=None
+        )
+
+    except ValidationError as e:
+        logger.error(f"Validation error for {user_id}: {e}")
+        return CreditScoreResponse(
+            user_id=user_id,
+            total_score=0.0,
+            credit_tier="risky",
+            credit_limit=0.0,
+            decision="not_eligible",
+            score_breakdown=ScoreBreakdown(
+                purchase_frequency=0.0,
+                return_behavior=0.0,
+                gmv_trajectory=0.0,
+                category_diversity=0.0,
+                coupon_redemption=0.0,
+                fraud_check=0.0
+            ),
+            error=str(e)
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error calculating credit score for {user_id}")
+        return CreditScoreResponse(
+            user_id=user_id,
+            total_score=0.0,
+            credit_tier="risky",
+            credit_limit=0.0,
+            decision="not_eligible",
+            score_breakdown=ScoreBreakdown(
+                purchase_frequency=0.0,
+                return_behavior=0.0,
+                gmv_trajectory=0.0,
+                category_diversity=0.0,
+                coupon_redemption=0.0,
+                fraud_check=0.0
+            ),
+            error=f"Internal error: {str(e)}"
+        )

@@ -17,9 +17,11 @@ const BNPLWidget = ({
   showQualificationReason,
   onToggleQualification
 }) => {
-  // Extract persona data
+  // Extract persona data with proper null handling
   const eligibilityStatus = userPersona?.status || 'loading';
-  const creditLimit = userPersona?.creditLimit || 0;
+  const creditLimit = (userPersona?.creditLimit !== undefined && userPersona?.creditLimit !== null)
+    ? userPersona.creditLimit
+    : 0;
   const reason = userPersona?.reason || '';
   const transactionHistory = userPersona?.transactionHistory || {};
   const emiOptions = userPersona?.emiOptions || defaultEmiOptions;
@@ -74,25 +76,56 @@ const BNPLWidget = ({
     );
   }
 
-  // Not eligible state
-  if (eligibilityStatus === 'not_eligible') {
+  // Not eligible state (with AI-generated reason and alternative payments)
+  if (eligibilityStatus === 'not_eligible' || eligibilityStatus === 'amount_exceeds_limit') {
     return (
       <motion.div
         initial={{ opacity: 0, height: 0 }}
         animate={{ opacity: 1, height: 'auto' }}
         exit={{ opacity: 0, height: 0 }}
-        className="p-6 bg-gray-50 rounded-lg border border-gray-200"
+        className="p-6 bg-red-50/50 rounded-lg border border-red-200"
       >
-        <div className="text-center py-8">
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+        <div className="mb-6">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h4 className="text-base font-semibold text-gray-900 mb-2">
+                Pay Later not available
+              </h4>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                {reason || "This option is not available for this purchase. Please choose another payment method."}
+              </p>
+            </div>
           </div>
-          <h4 className="text-lg font-semibold text-gray-900 mb-2">Pay Later not available</h4>
-          <p className="text-sm text-gray-600">
-            This option is not available for this purchase. Please choose another payment method.
-          </p>
+
+          {/* Alternative Payment Suggestions */}
+          <div className="mt-4 pt-4 border-t border-red-200">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Try these instead:</p>
+            <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-xs">
+                <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 20h4.01M6 8h2a2 2 0 002-2V4a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm0 0v2a2 2 0 002 2h2a2 2 0 002-2V8a2 2 0 00-2-2h-2a2 2 0 00-2 2v2zm0 0H4m16 4v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2a2 2 0 012-2h2a2 2 0 012 2z" />
+                </svg>
+                <span className="font-medium text-gray-700">UPI</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-xs">
+                <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                <span className="font-medium text-gray-700">Card</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-xs">
+                <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                </svg>
+                <span className="font-medium text-gray-700">Netbanking</span>
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
     );
@@ -207,6 +240,8 @@ const BNPLWidget = ({
       >
         <button
           onClick={onToggleQualification}
+          aria-expanded={showQualificationReason}
+          aria-label="Why you qualify for this credit offer"
           className="w-full flex items-center justify-between p-4 bg-blue-50/50 hover:bg-blue-50 rounded-lg border border-blue-100 transition-colors duration-200"
         >
           <span className="text-sm font-medium text-grabcredit-700">

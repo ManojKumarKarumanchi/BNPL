@@ -4,15 +4,15 @@ Checkout routes - Main BNPL eligibility endpoint.
 
 import logging
 from fastapi import APIRouter, HTTPException
-from schemas.request_schemas import EligibilityRequest
-from schemas.response_schemas import (
+from api.schemas.request_schemas import EligibilityRequest
+from api.schemas.response_schemas import (
     EligibilityResponse,
     TransactionHistory,
     EMIOption
 )
-from services.mcp_client import get_mcp_client
-from services.payu_client import get_payu_client
-from config import settings
+from api.services.mcp_client import get_mcp_client
+from api.services.payu_client import get_payu_client
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/checkout", tags=["checkout"])
@@ -111,13 +111,14 @@ async def check_eligibility(request: EligibilityRequest):
                     EMIOption(**emi) for emi in emi_result.get("emi_options", [])
                 ]
 
-        # Step 4: Generate AI narrative
+        # Step 4: Generate AI narrative (with purchase amount context)
         narrative_result = await mcp.call_tool(
             "explain_credit_decision_tool",
             {
                 "user_id": request.user_id,
                 "credit_score_result": credit_score,
-                "user_profile": user_profile
+                "user_profile": user_profile,
+                "purchase_amount": request.amount
             }
         )
 

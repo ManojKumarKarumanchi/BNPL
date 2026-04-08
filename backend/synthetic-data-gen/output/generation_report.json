@@ -1,5 +1,5 @@
 {
-  "generation_timestamp": "2026-04-07T14:38:14.264608",
+  "generation_timestamp": "2026-04-08T11:39:17.887587",
   "database_path": "C:/Users/ManojKumarKarumanchi/local/BNPL/backend/synthetic-data-gen/output/grabon_bnpl.db",
   "summary": {
     "total_users": 5,
@@ -11,33 +11,33 @@
       "user_id": "USR_VIKRAM",
       "name": "Vikram Singh",
       "transactions": 237,
-      "avg_order_value": 3019.07,
+      "avg_order_value": 3206.63,
       "return_rate": 0.0,
-      "coupon_redemption_rate": 98.73
+      "coupon_redemption_rate": 95.36
     },
     {
       "user_id": "USR_SNEHA",
       "name": "Sneha Reddy",
       "transactions": 48,
-      "avg_order_value": 1561.8,
+      "avg_order_value": 1078.37,
       "return_rate": 2.08,
-      "coupon_redemption_rate": 87.5
+      "coupon_redemption_rate": 91.67
     },
     {
       "user_id": "USR_AMIT",
       "name": "Amit Patel",
       "transactions": 25,
-      "avg_order_value": 768.41,
+      "avg_order_value": 667.49,
       "return_rate": 0.0,
-      "coupon_redemption_rate": 80.0
+      "coupon_redemption_rate": 92.0
     },
     {
       "user_id": "USR_PRIYA",
       "name": "Priya Sharma",
       "transactions": 8,
-      "avg_order_value": 406.59,
-      "return_rate": 12.5,
-      "coupon_redemption_rate": 37.5
+      "avg_order_value": 500.69,
+      "return_rate": 0.0,
+      "coupon_redemption_rate": 50.0
     },
     {
       "user_id": "USR_RAJESH",

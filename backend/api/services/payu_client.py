@@ -10,7 +10,7 @@ import hashlib
 import httpx
 import logging
 from typing import Dict, List, Any, Optional
-from config import settings
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class PayULazyPayClient:
     """
 
     def __init__(self):
+        # Use PayU API URL from settings
         self.base_url = settings.PAYU_SANDBOX_URL
         self.merchant_key = settings.PAYU_MERCHANT_KEY
         self.merchant_salt = settings.PAYU_MERCHANT_SALT
@@ -36,7 +37,7 @@ class PayULazyPayClient:
             base_url=self.base_url,
             timeout=10.0,
             headers={
-                "Content-Type": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",  # PayU uses form data
                 "Accept": "application/json"
             }
         )
@@ -81,53 +82,78 @@ class PayULazyPayClient:
             import uuid
             txn_id = f"GRABON_{user_id}_{uuid.uuid4().hex[:8]}"
 
-            # Prepare request payload
+            # Prepare request payload (PayU uses form-encoded data)
+            # Using official PayU EMI Calculator API endpoint
+            firstname = user_id.replace("USR_", "")
+            user_email = email or f"{user_id.lower()}@grabon.in"
+
+            # PayU hash formula: key|txnid|amount|productinfo|firstname|email|||||||||||salt
+            hash_string = f"{self.merchant_key}|{txn_id}|{amount}|GrabOn BNPL Purchase|{firstname}|{user_email}|||||||||||{self.merchant_salt}"
+            hash_value = hashlib.sha512(hash_string.encode('utf-8')).hexdigest()
+
             payload = {
                 "key": self.merchant_key,
                 "txnid": txn_id,
-                "amount": round(amount, 2),
+                "amount": str(round(amount, 2)),
                 "productinfo": "GrabOn BNPL Purchase",
-                "firstname": user_id.replace("USR_", ""),
-                "email": email or f"{user_id.lower()}@grabon.in",
-                "phone": mobile or "9999999999",  # Sandbox default
-                "credit_limit": round(credit_limit, 2),
+                "firstname": firstname,
+                "email": user_email,
+                "phone": mobile or "9999999999",
                 "surl": f"{settings.API_BASE_URL}/api/payu/success",
                 "furl": f"{settings.API_BASE_URL}/api/payu/failure",
-                "service_provider": "lazypay",
-                "mode": self.mode
+                "hash": hash_value,
+                "service_provider": "payu_paisa"
             }
 
-            # Generate hash
-            hash_sequence = f"{self.merchant_key}|{txn_id}|{amount}|GrabOn BNPL Purchase|{user_id}"
-            payload["hash"] = self._generate_hash(hash_sequence)
-
-            # Call PayU LazyPay EMI Calculation API
-            logger.info(f"Calling PayU LazyPay API for user {user_id}, amount ₹{amount}")
+            # Call PayU EMI Calculation API (form=2 is for EMI details)
+            logger.info(f"🔗 Calling PayU EMI API for user {user_id}, amount ₹{amount}")
 
             response = await self.client.post(
-                "/merchant/postservice.php?form=emi",
-                json=payload
+                "/merchant/postservice?form=2",
+                data=payload  # Use form data, not JSON
             )
 
             response.raise_for_status()
+
+            # Check if response is JSON
+            content_type = response.headers.get('content-type', '')
+            if 'json' not in content_type.lower():
+                logger.warning(f"⚠️ PayU API returned non-JSON response: {content_type}")
+                logger.debug(f"Response body: {response.text[:200]}")
+                return {
+                    "status": "failure",
+                    "emi_options": [],
+                    "transaction_id": txn_id,
+                    "error": "PayU API returned non-JSON response"
+                }
+
             data = response.json()
 
-            # Parse PayU response
-            if data.get("status") == "success":
-                emi_plans = self._parse_emi_plans(data.get("emi_plans", []))
+            # PayU EMI API returns: {"status": 1, "result": {...}, "emi_details": {...}}
+            if data.get("status") == 1 or data.get("status") == "1":
+                # Extract EMI details from response
+                emi_details = data.get("emi_details", {})
+                emi_plans = self._parse_payu_emi_response(emi_details, amount)
 
-                logger.info(f"✅ PayU API success: {len(emi_plans)} EMI options for {user_id}")
-
-                return {
-                    "status": "success",
-                    "emi_options": emi_plans,
-                    "transaction_id": txn_id,
-                    "error": None
-                }
+                if emi_plans:
+                    logger.info(f"✅ PayU API success: {len(emi_plans)} EMI options for {user_id}")
+                    return {
+                        "status": "success",
+                        "emi_options": emi_plans,
+                        "transaction_id": txn_id,
+                        "error": None
+                    }
+                else:
+                    logger.warning(f"⚠️ PayU API returned no EMI plans")
+                    return {
+                        "status": "failure",
+                        "emi_options": [],
+                        "transaction_id": txn_id,
+                        "error": "No EMI plans available from PayU"
+                    }
             else:
-                error_msg = data.get("error", "Unknown PayU error")
-                logger.warning(f"⚠️ PayU API returned error: {error_msg}")
-
+                error_msg = data.get("msg", data.get("error", "Unknown PayU error"))
+                logger.warning(f"⚠️ PayU API error: {error_msg}")
                 return {
                     "status": "failure",
                     "emi_options": [],
@@ -153,6 +179,16 @@ class PayULazyPayClient:
                 "error": f"PayU API error: {e.response.status_code}"
             }
 
+        except httpx.JSONDecodeError as e:
+            logger.error(f"❌ PayU API returned invalid JSON: {str(e)}")
+            logger.debug(f"Response text: {response.text[:500] if 'response' in locals() else 'N/A'}")
+            return {
+                "status": "failure",
+                "emi_options": [],
+                "transaction_id": None,
+                "error": "PayU API returned invalid response format"
+            }
+
         except Exception as e:
             logger.error(f"❌ PayU API unexpected error: {str(e)}")
             return {
@@ -162,17 +198,16 @@ class PayULazyPayClient:
                 "error": f"PayU integration error: {str(e)}"
             }
 
-    def _parse_emi_plans(self, raw_plans: List[Dict]) -> List[Dict[str, Any]]:
+    def _parse_payu_emi_response(self, emi_details: Dict, amount: float) -> List[Dict[str, Any]]:
         """
-        Parse PayU EMI plans into GrabOn BNPL format.
+        Parse PayU EMI response into GrabOn BNPL format.
 
-        PayU Format:
+        PayU EMI API returns nested structure with bank-wise EMI details:
         {
-            "tenure": 3,
-            "monthly_installment": 4200.00,
-            "interest_rate": 0,
-            "total_amount": 12600.00,
-            "processing_fee": 0
+            "BANK_CODE": {
+                "3": {"monthly_installment": 4200, "interest_rate": 0, ...},
+                "6": {"monthly_installment": 2100, "interest_rate": 2.5, ...}
+            }
         }
 
         GrabOn Format:
@@ -186,30 +221,75 @@ class PayULazyPayClient:
         }
         """
         emi_options = []
+        plan_id = 1
 
-        for i, plan in enumerate(raw_plans, start=1):
-            tenure = plan.get("tenure", 0)
-            interest_rate = plan.get("interest_rate", 0)
+        # Iterate through all banks and their EMI plans
+        for bank_code, plans in emi_details.items():
+            if not isinstance(plans, dict):
+                continue
 
-            # Determine tag based on tenure and interest
-            tag = None
-            if interest_rate == 0:
-                tag = "No Cost EMI"
-            elif tenure == 6:
-                tag = "Best Value"
-            elif tenure == 9:
-                tag = "VIP Rate"
+            for tenure_str, plan_data in plans.items():
+                try:
+                    tenure = int(tenure_str)
 
-            emi_options.append({
-                "id": i,
-                "duration": tenure,
-                "monthly_payment": round(plan.get("monthly_installment", 0), 2),
-                "tag": tag,
-                "total_amount": round(plan.get("total_amount", 0), 2),
-                "interest_rate": interest_rate,
-                "processing_fee": round(plan.get("processing_fee", 0), 2),
-                "provider": "PayU LazyPay"
-            })
+                    # Extract EMI details
+                    monthly_emi = float(plan_data.get("emi_amount", plan_data.get("monthly_installment", 0)))
+                    interest_rate = float(plan_data.get("interest_rate", 0))
+
+                    # Calculate total amount
+                    total_amount = monthly_emi * tenure
+
+                    # Determine tag based on tenure and interest
+                    tag = None
+                    if interest_rate == 0:
+                        tag = "No Cost EMI"
+                    elif tenure == 6:
+                        tag = "Best Value"
+                    elif tenure == 9:
+                        tag = "VIP Rate"
+
+                    emi_options.append({
+                        "id": plan_id,
+                        "duration": tenure,
+                        "monthly_payment": round(monthly_emi, 2),
+                        "tag": tag,
+                        "total_amount": round(total_amount, 2),
+                        "interest_rate": interest_rate,
+                        "processing_fee": 0.0,
+                        "provider": "PayU LazyPay"
+                    })
+
+                    plan_id += 1
+
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Skipping invalid EMI plan: {e}")
+                    continue
+
+        # If no plans found, try simpler format (some PayU responses vary)
+        if not emi_options and isinstance(emi_details, list):
+            for i, plan in enumerate(emi_details, start=1):
+                try:
+                    tenure = int(plan.get("tenure", plan.get("duration", 0)))
+                    monthly_emi = float(plan.get("monthly_installment", plan.get("emi_amount", 0)))
+                    interest_rate = float(plan.get("interest_rate", 0))
+
+                    tag = "No Cost EMI" if interest_rate == 0 else None
+
+                    emi_options.append({
+                        "id": i,
+                        "duration": tenure,
+                        "monthly_payment": round(monthly_emi, 2),
+                        "tag": tag,
+                        "total_amount": round(monthly_emi * tenure, 2),
+                        "interest_rate": interest_rate,
+                        "processing_fee": 0.0,
+                        "provider": "PayU LazyPay"
+                    })
+                except (ValueError, TypeError, KeyError):
+                    continue
+
+        # Sort by duration (shortest first)
+        emi_options.sort(key=lambda x: x["duration"])
 
         return emi_options
 

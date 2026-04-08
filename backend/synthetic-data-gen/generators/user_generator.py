@@ -51,7 +51,7 @@ class UserGenerator:
         print("=" * 80)
         for persona in ALL_PERSONAS:
             print(f"{persona.name:20} | {persona.user_id:12} | {persona.credit_tier:10} | "
-                  f"{persona.total_purchases:3} txns | ₹{persona.avg_order_value:,.0f} avg")
+                f"{persona.total_purchases:3} txns | ₹{persona.avg_order_value:,.0f} avg")
         print("=" * 80)
 
         return len(ALL_PERSONAS)
