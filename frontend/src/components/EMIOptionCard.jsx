@@ -9,12 +9,18 @@ const EMIOptionCard = ({ option, isSelected, onSelect, isDisabled = false }) => 
     monthly_payment,
     tag,
     totalAmount,
-    total_amount
+    total_amount,
+    is_one_time_payment,
+    isOneTimePayment,
+    due_date,
+    dueDate
   } = option || {};
 
   // Use camelCase first, fallback to snake_case, then to 0
   const displayMonthlyPayment = monthlyPayment || monthly_payment || 0;
   const displayTotalAmount = totalAmount || total_amount || 0;
+  const isOnetime = isOneTimePayment || is_one_time_payment || false;
+  const paymentDueDate = dueDate || due_date;
 
   return (
     <motion.button
@@ -48,25 +54,63 @@ const EMIOptionCard = ({ option, isSelected, onSelect, isDisabled = false }) => 
         </div>
       )}
 
-      {/* Duration */}
-      <div className="mb-2">
-        <span className="text-sm font-medium text-gray-600">
-          {duration} months
-        </span>
-      </div>
+      {/* Duration / Payment Info */}
+      {isOnetime ? (
+        <>
+          {/* 15-day One-time Payment (PayU LazyPay Primary) */}
+          <div className="mb-2">
+            <span className="text-sm font-semibold text-grabcredit-600">
+              Pay in 15 days
+            </span>
+          </div>
 
-      {/* Monthly Payment */}
-      <div className="mb-1">
-        <span className="text-2xl font-bold text-gray-900">
-          ₹{displayMonthlyPayment.toLocaleString('en-IN')}
-        </span>
-        <span className="text-sm text-gray-500">/mo</span>
-      </div>
+          {/* Full Amount */}
+          <div className="mb-1">
+            <span className="text-2xl font-bold text-gray-900">
+              ₹{displayMonthlyPayment.toLocaleString('en-IN')}
+            </span>
+            <span className="text-sm text-gray-500 ml-1">full amount</span>
+          </div>
 
-      {/* Total Amount */}
-      <div className="text-xs text-gray-500">
-        Total: ₹{displayTotalAmount.toLocaleString('en-IN')}
-      </div>
+          {/* Due Date */}
+          {paymentDueDate && (
+            <div className="text-xs text-gray-500">
+              Due by: {new Date(paymentDueDate).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+              })}
+            </div>
+          )}
+
+          {/* Zero Interest Badge */}
+          <div className="mt-2 text-xs font-medium text-success-600">
+            ✓ Zero interest · No processing fees
+          </div>
+        </>
+      ) : (
+        <>
+          {/* EMI Duration */}
+          <div className="mb-2">
+            <span className="text-sm font-medium text-gray-600">
+              {duration} months
+            </span>
+          </div>
+
+          {/* Monthly Payment */}
+          <div className="mb-1">
+            <span className="text-2xl font-bold text-gray-900">
+              ₹{displayMonthlyPayment.toLocaleString('en-IN')}
+            </span>
+            <span className="text-sm text-gray-500">/mo</span>
+          </div>
+
+          {/* Total Amount */}
+          <div className="text-xs text-gray-500">
+            Total: ₹{displayTotalAmount.toLocaleString('en-IN')}
+          </div>
+        </>
+      )}
 
       {/* Selection Indicator */}
       {isSelected && (

@@ -46,12 +46,12 @@ GrabCredit is a **complete end-to-end BNPL system** that demonstrates production
 - Personalized EMI options (3/6/9/12 months)
 - AI-generated human-readable credit narratives
 
-✅ **5 User Personas**
+✅ **5 User Personas (PayU LazyPay Aligned)**
 - Rajesh Kumar (New User) - 0 transactions, blocked <7 days
-- Priya Sharma (Risky) - 8 transactions, approved ₹15K
-- Amit Patel (Growing) - 25 transactions, approved ₹15K
-- Sneha Reddy (Regular) - 48 transactions, approved ₹15K
-- Vikram Singh (Power) - 237 transactions, approved ₹50K
+- Priya Sharma (Risky) - 8 transactions, 18% return rate, rejected
+- Amit Patel (Growing) - 25 transactions, approved ₹10K (PayU entry tier)
+- Sneha Reddy (Regular) - 48 transactions, approved ₹30K (PayU standard)
+- Vikram Singh (Power) - 237 transactions, approved ₹100K (PayU premium)
 
 ✅ **Production-Ready UI**
 - Dual-mode: Mock data (demo) + Real API (live)
@@ -217,15 +217,15 @@ npm run dev
 3. EMI options generated in real-time via Azure OpenAI
 4. AI narratives explain credit decisions
 
-### Testing Personas
+### Testing Personas (PayU LazyPay Aligned)
 
 | Persona | Status | Credit Limit | EMI Options | Test Case |
 |---------|--------|--------------|-------------|-----------|
 | Rajesh Kumar | ❌ Not Eligible | ₹0 | None | New user (<7 days) - fraud blocked |
-| Priya Sharma | ✅ Approved | ₹15,000 | 2 | Risky user with few transactions |
-| Amit Patel | ✅ Approved | ₹15,000 | 2 | Growing user - good behavior |
-| Sneha Reddy | ✅ Approved | ₹15,000 | 2 | Regular user - consistent shopping |
-| Vikram Singh | ✅ Approved | ₹50,000 | 2 | Power user - 237 transactions |
+| Priya Sharma | ❌ Not Eligible | ₹0 | None | Risky user - high return rate (18%) |
+| Amit Patel | ✅ Approved | ₹10,000 | 3 (15-day, 3mo, 6mo) | Growing tier - 25 transactions |
+| Sneha Reddy | ✅ Approved | ₹30,000 | 4 (15-day, 3mo, 6mo, 9mo) | Regular tier - 48 transactions |
+| Vikram Singh | ✅ Approved | ₹100,000 | 5 (15-day, 3mo, 6mo, 9mo, 12mo) | Power tier - 237 transactions |
 
 ---
 
@@ -376,12 +376,12 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
+**Response (PayU LazyPay Format):**
 ```json
 {
   "status": "approved",
-  "credit_limit": 15000.0,
-  "reason": "Great news! You've been approved for ₹15,000 credit because you've made 48 purchases with very few returns (2% return rate), and you shop across multiple categories...",
+  "credit_limit": 30000.0,
+  "reason": "Great news! You've been approved for ₹30,000 credit because you've made 48 purchases with very few returns (2% return rate), and you shop across multiple categories...",
   "transaction_history": {
     "total_purchases": 48,
     "avg_order_value": 2850,
@@ -391,13 +391,40 @@ Content-Type: application/json
   "emi_options": [
     {
       "id": 1,
+      "duration": 0.5,
+      "monthly_payment": 12499.0,
+      "tag": "Pay in 15 days - No interest",
+      "total_amount": 12499.0,
+      "interest_rate": 0.0,
+      "due_date": "2026-04-23",
+      "is_one_time_payment": true
+    },
+    {
+      "id": 2,
       "duration": 3,
-      "monthly_payment": 4166.33,
-      "tag": "No Cost EMI",
-      "total_amount": 12498.99,
-      "interest_rate": 0.0
+      "monthly_payment": 4291.67,
+      "tag": "Short EMI",
+      "total_amount": 12875.0,
+      "interest_rate": 12.0
+    },
+    {
+      "id": 3,
+      "duration": 6,
+      "monthly_payment": 2216.67,
+      "tag": "Standard EMI",
+      "total_amount": 13300.0,
+      "interest_rate": 14.0
+    },
+    {
+      "id": 4,
+      "duration": 9,
+      "monthly_payment": 1511.11,
+      "tag": "Flexible EMI",
+      "total_amount": 13600.0,
+      "interest_rate": 16.0
     }
-  ]
+  ],
+  "emi_provider": "PayU LazyPay"
 }
 ```
 
@@ -419,13 +446,13 @@ for user in USR_RAJESH USR_PRIYA USR_AMIT USR_SNEHA USR_VIKRAM; do
 done
 ```
 
-### Expected Results
+### Expected Results (PayU LazyPay Aligned)
 
 ✅ **USR_RAJESH**: `status: "not_eligible"` (new user <7 days)  
-✅ **USR_PRIYA**: `status: "approved"`, `credit_limit: 15000`  
-✅ **USR_AMIT**: `status: "approved"`, `credit_limit: 15000`  
-✅ **USR_SNEHA**: `status: "approved"`, `credit_limit: 15000`  
-✅ **USR_VIKRAM**: `status: "approved"`, `credit_limit: 50000`
+✅ **USR_PRIYA**: `status: "not_eligible"` (high return rate 18%)  
+✅ **USR_AMIT**: `status: "approved"`, `credit_limit: 10000` (Growing tier)  
+✅ **USR_SNEHA**: `status: "approved"`, `credit_limit: 30000` (Regular tier)  
+✅ **USR_VIKRAM**: `status: "approved"`, `credit_limit: 100000` (Power tier)
 
 ---
 
@@ -518,15 +545,17 @@ python server.py
    - New users (<7 days) → AUTO-BLOCK
    - Active users → 100/100 → 5 points
 
-### Credit Tiers
+### Credit Tiers (PayU LazyPay Aligned)
 
 | Tier | Score Range | Credit Limit | EMI Options |
 |------|-------------|--------------|-------------|
 | New User | <40 | ₹0 | None |
 | Risky | 40-55 | ₹0 | None |
-| Growing | 56-70 | ₹15,000 | 3/6 months |
-| Regular | 71-85 | ₹25,000 | 3/6/9 months |
-| Power | 86-100 | ₹50,000 | 3/6/9/12 months |
+| Growing | 56-70 | ₹10,000 | 15-day, 3/6 months |
+| Regular | 71-85 | ₹30,000 | 15-day, 3/6/9 months |
+| Power | 86-100 | ₹100,000 | 15-day, 3/6/9/12 months |
+
+**Note**: 15-day option = Pay full amount in 15 days @ 0% interest (PayU LazyPay primary offering)
 
 ---
 
@@ -758,51 +787,56 @@ PAYU_ENABLED=true
 
 ---
 
-### 8. GrabCredit vs PayU LazyPay Comparison
+### 8. PayU LazyPay Strategic Partnership
 
-**Important Note:** GrabCredit demonstrates PayU's **API integration architecture** but uses more customer-friendly BNPL terms optimized for GrabOn's use case.
+**GrabOn Financial Services Strategy:**
 
-**Why Different?**
-- GrabOn focuses on higher-ticket purchases (₹5K-₹50K)
-- 3-month EMI provides better affordability than 15-day one-time payment
-- More generous terms create competitive advantage
+GrabOn is building two new financial services verticals powered by its transaction data advantage and strategic partnerships with **Poonawalla Fincorp** (NBFC with lending license) and **PayU** (India's leading payment infrastructure):
 
-**Comparison:**
+1. **GrabCredit BNPL**: Consumer-facing Buy Now, Pay Later products at checkout
+2. **Merchant Credit Lines**: Working capital credit lines for merchants, underwritten using GrabOn's proprietary behavioral transaction data
 
-| Feature | PayU LazyPay (Actual) | GrabCredit (Our System) |
-|---------|----------------------|-------------------------|
-| **Primary Offering** | 15-day @ 0% interest | 3-month @ 0% interest |
-| **Default Repayment** | One-time payment (15 days) | EMI (3 months) |
-| **EMI Options** | 3/6/9/12 months | 3/6/9/12 months |
-| **EMI Interest Rates** | 12-18% p.a. | 3.2-8% p.a. ✅ Lower |
-| **Credit Limits** | ₹10K-₹100K | ₹15K-₹50K |
-| **Approval Speed** | < 5 seconds | < 1 second ✅ Faster |
-| **Credit Check** | None (behavioral) | None (6-factor) |
-| **Documentation** | None required | None required |
-| **Lending Partner** | RBL Bank / DMI Finance | Poonawalla Fincorp |
+**PayU LazyPay Integration:**
 
-**Key Advantages:**
-- ✅ **More generous:** 3-month @ 0% (vs 15-day @ 0%)
-- ✅ **Lower rates:** 3.2-8% p.a. (vs 12-18% p.a.)
-- ✅ **Faster:** <1s approval (vs <5s)
-- ✅ **Transparent:** Upfront EMI selection (no surprise conversions)
+This system implements **PayU LazyPay's actual BNPL terms**:
 
-**Use Case Optimization:**
-- PayU LazyPay: Optimized for small purchases (₹1K-₹10K) like groceries, food delivery
-- GrabCredit: Optimized for e-commerce deals (₹5K-₹50K) like electronics, fashion
+| Feature | PayU LazyPay Implementation |
+|---------|---------------------------|
+| **Primary Offering** | 15-day @ 0% interest (one-time payment) |
+| **EMI Options** | 3/6/9/12 months (tier-based) |
+| **EMI Interest Rates** | 12% (3mo), 14% (6mo), 16% (9mo), 18% (12mo) p.a. |
+| **Credit Limits** | ₹10K (growing), ₹30K (regular), ₹100K (power) |
+| **Credit Check** | None (behavioral scoring only) |
+| **Documentation** | None required (instant approval) |
+| **Approval Speed** | < 1 second (real-time) |
+| **Lending Partners** | RBL Bank / DMI Finance (via PayU) |
+| **Strategic Partner** | PayU (payment infrastructure) + Poonawalla Fincorp (NBFC) |
 
-**Integration Approach:**
-- Uses PayU's API integration pattern (factory pattern, mock client)
-- Demonstrates production-ready integration architecture
-- Can switch to real PayU LazyPay by updating EMI terms and adding credentials
+**How PayU LazyPay Works:**
 
-**For Real PayU LazyPay Integration:**
-1. Update EMI terms to match PayU's commercial agreement
-2. Add 15-day one-time payment option
-3. Implement auto-EMI conversion logic (if not paid in 15 days)
-4. Increase interest rates to 12-18% p.a.
-5. Add OTP verification flow
-6. Replace mock client with real PayU credentials
+1. **Primary Flow**: User selects "Pay in 15 days" @ 0% interest (full amount due in 15 days)
+2. **EMI Conversion**: User can convert to EMI (3/6/9/12 months) at checkout or later
+3. **Behavioral Scoring**: Credit decision based on GrabOn transaction history (no CIBIL check)
+4. **Instant Approval**: Credit limit assigned in real-time (<1 second)
+5. **PayU Infrastructure**: Payment processing via PayU's API
+6. **NBFC Backing**: Loans underwritten by Poonawalla Fincorp (regulated NBFC)
+
+**Partnership Benefits:**
+
+- ✅ **PayU Expertise**: Leverage India's leading payment infrastructure
+- ✅ **NBFC Compliance**: Poonawalla Fincorp ensures RBI regulatory compliance
+- ✅ **Data Advantage**: GrabOn's proprietary transaction data powers credit scoring
+- ✅ **Instant Decisioning**: No credit bureau checks, fully behavioral
+- ✅ **Scalable Infrastructure**: PayU handles payment processing at scale
+
+**Implementation Details:**
+
+This project demonstrates the complete integration architecture:
+- Mock PayU client for demo (no credentials required)
+- Factory pattern for seamless mock → real client upgrade
+- Actual PayU LazyPay terms (15-day @ 0%, EMI at 12-18% p.a.)
+- Credit limits matching PayU tiers (₹10K/₹30K/₹100K)
+- Production-ready API structure for real PayU integration
 
 ---
 

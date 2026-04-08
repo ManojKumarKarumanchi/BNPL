@@ -425,32 +425,26 @@ class MockPayUClient:
     """
     Mock PayU LazyPay client for demo/testing without real credentials.
 
-    NOTE: This demonstrates PayU's API integration architecture but uses
-    GrabCredit's BNPL terms instead of PayU LazyPay's actual terms:
-
-    GrabCredit Terms:
-    - 3-month @ 0% interest (primary offering)
-    - 6/9/12-month EMI with 3.2-8% p.a. interest
-    - Credit limits: ₹15K-₹50K
-
-    PayU LazyPay Actual Terms:
+    ALIGNED WITH ACTUAL PayU LazyPay TERMS:
     - 15-day @ 0% interest (primary offering)
     - 3/6/9/12-month EMI with 12-18% p.a. interest
     - Credit limits: ₹10K-₹100K
+    - Lending partners: RBL Bank / DMI Finance
 
-    Why Different? GrabCredit is optimized for GrabOn's higher-ticket
-    e-commerce purchases (₹5K-₹50K) where 3-month EMI provides better
-    affordability than 15-day one-time payment.
+    Strategic Partnership Context:
+    GrabOn has a strategic partnership with PayU (India's leading payment
+    infrastructure) to offer PayU LazyPay as the BNPL product for GrabCredit.
+    This mock client uses actual PayU LazyPay terms for demo purposes.
 
     Returns realistic PayU-format responses without calling external API.
     Useful for:
     - Local development without merchant credentials
     - Automated testing
-    - Demo environments
+    - Demo environments with actual PayU LazyPay terms
     """
 
     def __init__(self):
-        logger.info("🎭 MockPayUClient initialized (GrabCredit terms, no real API calls)")
+        logger.info("🎭 MockPayUClient initialized (PayU LazyPay actual terms, no real API calls)")
 
     async def calculate_emi_offers(
         self,
@@ -470,50 +464,61 @@ class MockPayUClient:
 
         logger.info(f"🎭 [MOCK PayU] Calculating EMI for {user_id}, amount ₹{amount}")
 
-        # Simulate PayU EMI plans (bank-wise structure)
-        # Based on actual PayU LazyPay response format
+        # Simulate PayU LazyPay EMI plans (ACTUAL PayU LazyPay terms)
+        # Primary: 15-day @ 0% (duration 0.5)
+        # Secondary: 3/6/9/12 month EMI @ 12-18% p.a.
+        from datetime import datetime, timedelta
+
         mock_emi_details = {
-            "HDFC": {
-                "3": {
-                    "emi_amount": round(amount / 3, 2),
+            "LAZYPAY": {
+                "0.5": {  # 15-day one-time payment (PayU LazyPay primary)
+                    "emi_amount": amount,  # Full amount
                     "interest_rate": 0.0,
                     "bank_interest": 0.0,
-                    "bank_name": "HDFC Bank"
+                    "bank_name": "PayU LazyPay",
+                    "due_date": (datetime.now() + timedelta(days=15)).strftime("%Y-%m-%d"),
+                    "is_one_time_payment": True
+                },
+                "3": {
+                    "emi_amount": round(amount / 3 * 1.03, 2),  # 12% annual = 3% for 3 months
+                    "interest_rate": 12.0,  # PayU actual rate
+                    "bank_interest": round(amount * 0.03, 2),
+                    "bank_name": "RBL Bank"  # PayU lending partner
                 },
                 "6": {
-                    "emi_amount": round(amount / 6 * 1.016, 2),  # 2% annual interest
-                    "interest_rate": 2.0,
-                    "bank_interest": round(amount * 0.02, 2),
-                    "bank_name": "HDFC Bank"
+                    "emi_amount": round(amount / 6 * 1.07, 2),  # 14% annual = 7% for 6 months
+                    "interest_rate": 14.0,
+                    "bank_interest": round(amount * 0.07, 2),
+                    "bank_name": "RBL Bank"
                 }
             },
-            "ICICI": {
+            "DMI_FINANCE": {
                 "9": {
-                    "emi_amount": round(amount / 9 * 1.04, 2),  # 5% annual interest
-                    "interest_rate": 5.0,
-                    "bank_interest": round(amount * 0.05, 2),
-                    "bank_name": "ICICI Bank"
+                    "emi_amount": round(amount / 9 * 1.12, 2),  # 16% annual = 12% for 9 months
+                    "interest_rate": 16.0,
+                    "bank_interest": round(amount * 0.12, 2),
+                    "bank_name": "DMI Finance"  # PayU NBFC partner
                 },
                 "12": {
-                    "emi_amount": round(amount / 12 * 1.06, 2),  # 8% annual interest
-                    "interest_rate": 8.0,
-                    "bank_interest": round(amount * 0.08, 2),
-                    "bank_name": "ICICI Bank"
+                    "emi_amount": round(amount / 12 * 1.18, 2),  # 18% annual
+                    "interest_rate": 18.0,
+                    "bank_interest": round(amount * 0.18, 2),
+                    "bank_name": "DMI Finance"
                 }
             }
         }
 
-        # Filter plans based on credit tier (mimics PayU business rules)
-        # Growing tier (₹15K limit): 3, 6 months only
-        # Regular tier (₹25K limit): 3, 6, 9 months
-        # Power tier (₹50K+ limit): all tenures
-        if credit_limit <= 15000:
+        # Filter plans based on credit tier (PayU LazyPay actual business rules)
+        # Growing tier (₹10K limit): 15-day, 3, 6 months
+        # Regular tier (₹30K limit): 15-day, 3, 6, 9 months
+        # Power tier (₹100K limit): all tenures including 12 months
+        if credit_limit <= 10000:
             # Remove 9 and 12 month plans
-            mock_emi_details.pop("ICICI", None)
-        elif credit_limit <= 25000:
-            # Remove 12 month plan
-            if "ICICI" in mock_emi_details:
-                mock_emi_details["ICICI"].pop("12", None)
+            mock_emi_details.pop("DMI_FINANCE", None)
+        elif credit_limit <= 30000:
+            # Remove 12 month plan only
+            if "DMI_FINANCE" in mock_emi_details:
+                mock_emi_details["DMI_FINANCE"].pop("12", None)
 
         # Parse mock response using same logic as real PayU
         emi_plans = self._parse_payu_emi_response(mock_emi_details, amount)
@@ -561,7 +566,9 @@ class MockPayUClient:
                         "total_amount": round(total_amount, 2),
                         "interest_rate": interest_rate,
                         "processing_fee": 0.0,
-                        "provider": "GrabCredit"  # GrabCredit terms, not PayU LazyPay
+                        "provider": "PayU LazyPay",  # PayU strategic partner
+                        "is_one_time_payment": plan_data.get("is_one_time_payment", False),
+                        "due_date": plan_data.get("due_date")  # For 15-day payment
                     })
 
                     plan_id += 1

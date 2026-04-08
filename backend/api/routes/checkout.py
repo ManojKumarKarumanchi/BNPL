@@ -135,9 +135,9 @@ async def check_eligibility(request: EligibilityRequest):
             ),
             emi_options=emi_options,
             payu_transaction_id=payu_result.get("transaction_id") if settings.PAYU_ENABLED and 'payu_result' in locals() else None,
-            # emi_provider: Use "GrabCredit" for demo (mock PayU client uses GrabCredit terms)
-            # Would be "PayU LazyPay" only with real PayU credentials and actual PayU terms
-            emi_provider="GrabCredit",
+            # emi_provider: PayU LazyPay (strategic partner)
+            # GrabOn has strategic partnership with PayU for BNPL offering
+            emi_provider="PayU LazyPay" if settings.PAYU_ENABLED and 'payu_result' in locals() and payu_result.get("status") == "success" else "PayU LazyPay",
             score_details=credit_score.get("score_breakdown")  # Optional debug info
         )
 
