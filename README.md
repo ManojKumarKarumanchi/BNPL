@@ -1,4 +1,7 @@
-# GrabCredit BNPL - Buy Now, Pay Later System
+# GrabCredit BNPL - Buy Now, Pay Later System [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ManojKumarKarumanchi/BNPL)
+
+Deepwiki: https://deepwiki.com/ManojKumarKarumanchi/BNPL
+Drive video link: https://acesse.one/w3hj0h5
 
 An AI-powered credit scoring and BNPL eligibility engine for GrabOn's e-commerce platform, powered by Claude AI and Azure OpenAI.
 
