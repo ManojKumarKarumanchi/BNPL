@@ -168,17 +168,31 @@ class CreditScoringEngine:
         member_since: datetime
     ) -> float:
         """
-        Score based on transaction frequency.
+        Score based on hybrid model: velocity + volume + tenure.
         Weight: 30%
-        Formula: min(100, (total_purchases / months_active) * 10)
+        Formula: (velocity * 0.35) + (volume * 0.45) + (tenure * 0.20)
+
+        This rewards both recent activity AND long-term loyalty.
         """
         days_active = (datetime.now() - member_since).days
         months_active = max(1, days_active / 30)
 
         txns_per_month = total_purchases / months_active
 
+        # Component 1: Velocity (recent activity) - 35% weight
         # Scale: 10 txns/month = 100 points
-        score = min(100, txns_per_month * 10)
+        velocity_score = min(100, txns_per_month * 10)
+
+        # Component 2: Volume (total history) - 45% weight (PRIMARY)
+        # Scale: 45 txns = 100 points
+        volume_score = min(100, total_purchases * 2.2)
+
+        # Component 3: Tenure (loyalty bonus) - 20% weight
+        # Scale: 20 months = 100 points
+        tenure_score = min(100, months_active * 5)
+
+        # Hybrid score balances all three factors
+        score = (velocity_score * 0.35) + (volume_score * 0.45) + (tenure_score * 0.20)
 
         return score
 

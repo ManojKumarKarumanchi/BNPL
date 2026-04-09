@@ -53,7 +53,7 @@ function App() {
   const SHOW_PERSONA_SWITCHER = import.meta.env.VITE_SHOW_PERSONA_SWITCHER === 'true';
   const [showPersonaSwitcher, setShowPersonaSwitcher] = useState(SHOW_PERSONA_SWITCHER);
 
-  // Check backend connectivity on mount
+  // Check backend connectivity on mount and fetch initial eligibility
   useEffect(() => {
     const checkBackend = async () => {
       const connected = await testConnection();
@@ -63,6 +63,13 @@ function App() {
           type: 'success',
           message: 'Backend connected successfully'
         });
+        // Fetch eligibility for default persona if Real API is enabled
+        if (useRealAPI) {
+          const userId = userIdMap[currentPersona];
+          if (userId) {
+            await checkUserEligibility(userId);
+          }
+        }
       }
     };
     checkBackend();

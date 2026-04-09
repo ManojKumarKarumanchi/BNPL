@@ -36,6 +36,7 @@ class ClaudeClient:
             message = self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
+                timeout=30.0,  # 30 second timeout to prevent hanging
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
@@ -43,6 +44,9 @@ class ClaudeClient:
 
             return message.content[0].text
 
+        except TimeoutError:
+            print(f"⚠️  Claude API timeout after 30 seconds")
+            return f"Credit decision processed. Status: approved/rejected based on transaction history."
         except Exception as e:
             print(f"⚠️  Claude API error: {str(e)}")
             return f"Credit decision processed. Status: approved/rejected based on transaction history."
@@ -106,11 +110,15 @@ class AzureOpenAIClient:
                 ],
                 max_completion_tokens=max_tokens,  # Updated for newer Azure models
                 temperature=0.7,
-                top_p=0.95
+                top_p=0.95,
+                timeout=30.0  # 30 second timeout to prevent hanging
             )
 
             return response.choices[0].message.content
 
+        except TimeoutError:
+            print(f"⚠️  Azure OpenAI API timeout after 30 seconds")
+            return f"Credit decision processed. Status: approved/rejected based on transaction history."
         except Exception as e:
             print(f"⚠️  Azure OpenAI API error: {str(e)}")
             return f"Credit decision processed. Status: approved/rejected based on transaction history."

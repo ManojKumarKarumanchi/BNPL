@@ -119,7 +119,7 @@ export const userPersonas = {
     name: 'Amit Patel',
     type: 'Growing User',
     status: 'approved',
-    creditLimit: 10000,  // PayU LazyPay Growing tier
+    creditLimit: 15000,  // PayU LazyPay Growing tier
     reason: 'Based on your 25 purchases over the past 4 months and low return rate of 4%, you qualify for Pay Later. Your average order value of ₹1,850 and consistent monthly activity show responsible buying behavior.',
     transactionHistory: {
       totalPurchases: 25,

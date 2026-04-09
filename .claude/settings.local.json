@@ -74,7 +74,12 @@
       "WebFetch(domain:payu.in)",
       "Bash(pkill -f \"python run.py\")",
       "mcp__plugin_playwright_playwright__browser_close",
-      "mcp__plugin_playwright_playwright__browser_run_code"
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "Bash(python3)",
+      "Bash(pkill -f \"uvicorn api.main:app\")",
+      "Bash(grep -E \"^-.*\\\\.\\(md|txt\\)$\")",
+      "Bash(find:*)",
+      "Bash(taskkill //F //IM python.exe //FI \"WINDOWTITLE eq *uvicorn*\")"
     ]
   }
 }

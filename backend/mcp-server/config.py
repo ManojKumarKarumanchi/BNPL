@@ -45,7 +45,7 @@ CREDIT_TIERS = {
         "description": "High risk detected"
     },
     "growing": {
-        "credit_limit": 10000,  # ₹10K (PayU entry level)
+        "credit_limit": 15000,  # ₹15K (PayU entry level)
         "emi_durations": [0.5, 3, 6],  # 15-day (0.5 month), 3mo, 6mo
         "description": "Growing trust - PayU LazyPay entry tier"
     },
