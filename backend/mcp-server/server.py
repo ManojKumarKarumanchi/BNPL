@@ -7,6 +7,8 @@ Usage:
 """
 
 from fastmcp import FastMCP
+import sys
+from pathlib import Path
 import config
 from tools.get_user_profile import get_user_profile
 from tools.calculate_credit_score import calculate_credit_score
@@ -19,6 +21,15 @@ from models import (
     CreditNarrativeResponse,
     HealthCheckResponse
 )
+
+# Add backend root to path for shared_logging import
+backend_root = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_root))
+
+from shared_logging import setup_logging, log_section_separator, log_mcp_tool_call
+
+# Initialize centralized logger for MCP server
+logger = setup_logging("mcp-server", level="INFO")
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -62,8 +73,10 @@ def get_user_profile_tool(user_id: str) -> UserProfileResponse:
     Returns:
         User profile with transaction history
     """
-    print(f"🔍 Fetching profile for {user_id}...")
-    return get_user_profile(user_id)
+    log_mcp_tool_call(logger, "get_user_profile", {"user_id": user_id})
+    result = get_user_profile(user_id)
+    logger.info(f"[SUCCESS] Profile retrieved: {result.get('name', 'Unknown')} | {result.get('total_purchases', 0)} purchases")
+    return result
 
 
 @mcp.tool()
@@ -86,8 +99,14 @@ def calculate_credit_score_tool(user_id: str, purchase_amount: float = 0) -> Cre
     Returns:
         Credit tier, limit, decision, and score breakdown
     """
-    print(f"📊 Calculating credit score for {user_id} (amount: ₹{purchase_amount:.2f})...")
-    return calculate_credit_score(user_id, purchase_amount)
+    log_mcp_tool_call(logger, "calculate_credit_score", {"user_id": user_id, "amount": purchase_amount})
+    result = calculate_credit_score(user_id, purchase_amount)
+    logger.info(
+        f"[SUCCESS] Score calculated: {result['decision'].upper()} | "
+        f"Tier: {result.get('credit_tier', 'N/A')} | "
+        f"Limit: Rs.{result.get('credit_limit', 0):,.0f}"
+    )
+    return result
 
 
 @mcp.tool()
@@ -100,9 +119,9 @@ def generate_emi_options_tool(
     Generate EMI options based on credit tier.
 
     Tiers & EMI Options:
-    - growing: 3, 6 months
-    - regular: 3, 6, 9 months
-    - power: 3, 6, 9, 12 months (VIP)
+    - growing: 15-day + 3, 6 months
+    - regular: 15-day + 3, 6, 9 months
+    - power: 15-day + 3, 6, 9 months (VIP)
 
     Args:
         credit_tier: User's credit tier ("growing", "regular", "power")
@@ -110,10 +129,16 @@ def generate_emi_options_tool(
         credit_limit: User's credit limit
 
     Returns:
-        List of EMI options with monthly payments
+        List of EMI options with monthly payments (15-day BNPL + EMI)
     """
-    print(f"💰 Generating EMI options for {credit_tier} tier (₹{purchase_amount:.2f})...")
-    return generate_emi_options(credit_tier, purchase_amount, credit_limit)
+    log_mcp_tool_call(logger, "generate_emi_options", {
+        "tier": credit_tier,
+        "amount": purchase_amount,
+        "limit": credit_limit
+    })
+    result = generate_emi_options(credit_tier, purchase_amount, credit_limit)
+    logger.info(f"[SUCCESS] EMI options generated: {len(result.get('emi_options', []))} options for {credit_tier} tier")
+    return result
 
 
 @mcp.tool()
@@ -135,7 +160,8 @@ def explain_credit_decision_tool(
     Returns:
         AI-generated explanation (2-3 sentences, specific metrics)
     """
-    print(f"✍️  Generating AI narrative for {user_id} (amount: ₹{purchase_amount:.2f})...")
+    log_mcp_tool_call(logger, "explain_credit_decision", {"user_id": user_id, "amount": purchase_amount})
+    logger.info(f"[AI NARRATIVE] Generating explanation for {user_id} (amount: Rs.{purchase_amount:.2f})")
     return explain_credit_decision(user_id, credit_score_result, user_profile, purchase_amount)
 
 
@@ -178,22 +204,22 @@ def health_check() -> HealthCheckResponse:
 
 
 if __name__ == "__main__":
-    print("=" * 80)
-    print("🚀 GrabOn BNPL MCP Server")
-    print("=" * 80)
-    print(f"Name: {config.MCP_SERVER_NAME}")
-    print(f"Version: {config.MCP_SERVER_VERSION}")
-    print(f"Database: {config.DB_PATH}")
-    print(f"Port: {config.MCP_SERVER_PORT}")
-    print("=" * 80)
-    print("\n[MCP] Server ready. Use FastMCP to run this server.")
-    print("[MCP] Tools registered: 5")
-    print("   1. get_user_profile_tool")
-    print("   2. calculate_credit_score_tool")
-    print("   3. generate_emi_options_tool")
-    print("   4. explain_credit_decision_tool")
-    print("   5. health_check")
-    print("\n[MCP] See README.md for usage examples\n")
+    log_section_separator(logger, "MCP SERVER STARTUP")
+    logger.info(f"[STARTUP] {config.MCP_SERVER_NAME}")
+    logger.info(f"Version: {config.MCP_SERVER_VERSION}")
+    logger.info(f"Database: {config.DB_PATH}")
+    logger.info(f"Port: {config.MCP_SERVER_PORT}")
+    logger.info(f"AI Provider: {config.AI_PROVIDER.upper()}")
+    logger.info("")
+    logger.info("Tools registered: 5")
+    logger.info("   1. get_user_profile_tool")
+    logger.info("   2. calculate_credit_score_tool")
+    logger.info("   3. generate_emi_options_tool")
+    logger.info("   4. explain_credit_decision_tool")
+    logger.info("   5. health_check")
+    logger.info("")
+    logger.info("[READY] MCP Server ready to accept tool calls")
+    log_section_separator(logger, "")
 
     # Run server
     mcp.run()

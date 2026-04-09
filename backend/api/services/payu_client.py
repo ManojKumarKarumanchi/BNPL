@@ -8,11 +8,18 @@ https://docs.payu.in/docs/lazypay-integration
 
 import hashlib
 import httpx
-import logging
+import sys
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from api.config import settings
 
-logger = logging.getLogger(__name__)
+# Add backend root to path for shared_logging import
+backend_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(backend_root))
+
+from shared_logging import setup_logging, log_payu_api_call
+
+logger = setup_logging("payu-client", level="INFO")
 
 
 class PayULazyPayClient:
@@ -106,7 +113,7 @@ class PayULazyPayClient:
             }
 
             # Call PayU EMI Calculation API (form=2 is for EMI details)
-            logger.info(f"🔗 Calling PayU EMI API for user {user_id}, amount ₹{amount}")
+            logger.info(f"[PAYU] Calling PayU EMI API for user {user_id}, amount Rs.{amount}")
 
             response = await self.client.post(
                 "/merchant/postservice?form=2",
@@ -118,7 +125,7 @@ class PayULazyPayClient:
             # Check if response is JSON
             content_type = response.headers.get('content-type', '')
             if 'json' not in content_type.lower():
-                logger.warning(f"⚠️ PayU API returned non-JSON response: {content_type}")
+                logger.warning(f"[WARNING] PayU API returned non-JSON response: {content_type}")
                 logger.debug(f"Response body: {response.text[:200]}")
                 return {
                     "status": "failure",
@@ -136,7 +143,7 @@ class PayULazyPayClient:
                 emi_plans = self._parse_payu_emi_response(emi_details, amount)
 
                 if emi_plans:
-                    logger.info(f"✅ PayU API success: {len(emi_plans)} EMI options for {user_id}")
+                    logger.info(f"[SUCCESS] PayU API success: {len(emi_plans)} EMI options for {user_id}")
                     return {
                         "status": "success",
                         "emi_options": emi_plans,
@@ -144,7 +151,7 @@ class PayULazyPayClient:
                         "error": None
                     }
                 else:
-                    logger.warning(f"⚠️ PayU API returned no EMI plans")
+                    logger.warning(f"[WARNING] PayU API returned no EMI plans")
                     return {
                         "status": "failure",
                         "emi_options": [],
@@ -153,7 +160,7 @@ class PayULazyPayClient:
                     }
             else:
                 error_msg = data.get("msg", data.get("error", "Unknown PayU error"))
-                logger.warning(f"⚠️ PayU API error: {error_msg}")
+                logger.warning(f"[WARNING] PayU API error: {error_msg}")
                 return {
                     "status": "failure",
                     "emi_options": [],
@@ -162,7 +169,7 @@ class PayULazyPayClient:
                 }
 
         except httpx.TimeoutException:
-            logger.error("❌ PayU API timeout")
+            logger.error("[ERROR] PayU API timeout")
             return {
                 "status": "failure",
                 "emi_options": [],
@@ -171,7 +178,7 @@ class PayULazyPayClient:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ PayU API HTTP error: {e.response.status_code}")
+            logger.error(f"[ERROR] PayU API HTTP error: {e.response.status_code}")
             return {
                 "status": "failure",
                 "emi_options": [],
@@ -180,7 +187,7 @@ class PayULazyPayClient:
             }
 
         except httpx.JSONDecodeError as e:
-            logger.error(f"❌ PayU API returned invalid JSON: {str(e)}")
+            logger.error(f"[ERROR] PayU API returned invalid JSON: {str(e)}")
             logger.debug(f"Response text: {response.text[:500] if 'response' in locals() else 'N/A'}")
             return {
                 "status": "failure",
@@ -190,7 +197,7 @@ class PayULazyPayClient:
             }
 
         except Exception as e:
-            logger.error(f"❌ PayU API unexpected error: {str(e)}")
+            logger.error(f"[ERROR] PayU API unexpected error: {str(e)}")
             return {
                 "status": "failure",
                 "emi_options": [],
@@ -363,7 +370,7 @@ class PayULazyPayClient:
                 }
 
         except Exception as e:
-            logger.error(f"❌ PayU checkout error: {str(e)}")
+            logger.error(f"[ERROR] PayU checkout error: {str(e)}")
             return {
                 "status": "failure",
                 "checkout_url": None,
@@ -415,7 +422,7 @@ class PayULazyPayClient:
             }
 
         except Exception as e:
-            logger.error(f"❌ Status check error: {str(e)}")
+            logger.error(f"[ERROR] Status check error: {str(e)}")
             return {
                 "status": "unknown",
                 "amount": 0,
@@ -435,7 +442,7 @@ class MockPayUClient:
     ALIGNED WITH ACTUAL PayU LazyPay TERMS (STANDARDIZED):
     - 15-day @ 0% interest (primary BNPL offering - default)
     - 3/6/9-month EMI with 12-16% p.a. interest (optional)
-    - Credit limits: ₹10K-₹100K
+    - Credit limits: Rs.10K-Rs.100K
     - Lending partners: RBL Bank / DMI Finance
 
     Strategic Partnership Context:
@@ -454,7 +461,7 @@ class MockPayUClient:
     """
 
     def __init__(self):
-        logger.info("🎭 MockPayUClient initialized (PayU LazyPay actual terms, no real API calls)")
+        logger.info("[MOCK] MockPayUClient initialized (PayU LazyPay actual terms, no real API calls)")
 
     async def calculate_emi_offers(
         self,
@@ -472,7 +479,7 @@ class MockPayUClient:
         import uuid
         txn_id = f"MOCK_GRABON_{user_id}_{uuid.uuid4().hex[:8]}"
 
-        logger.info(f"🎭 [MOCK PayU] Calculating EMI for {user_id}, amount ₹{amount}")
+        logger.info(f"[MOCK] [MOCK PayU] Calculating EMI for {user_id}, amount Rs.{amount}")
 
         # Simulate PayU LazyPay EMI plans (ACTUAL PayU LazyPay terms)
         # Primary: 15-day @ 0% (duration 0.5)
@@ -514,9 +521,9 @@ class MockPayUClient:
         }
 
         # Filter plans based on credit tier (PayU LazyPay standardized business rules)
-        # Growing tier (₹10K limit): 15-day BNPL + 3/6 month EMI
-        # Regular tier (₹30K limit): 15-day BNPL + 3/6/9 month EMI
-        # Power tier (₹100K limit): 15-day BNPL + 3/6/9 month EMI (same as regular)
+        # Growing tier (Rs.10K limit): 15-day BNPL + 3/6 month EMI
+        # Regular tier (Rs.30K limit): 15-day BNPL + 3/6/9 month EMI
+        # Power tier (Rs.100K limit): 15-day BNPL + 3/6/9 month EMI (same as regular)
         if credit_limit <= 10000:
             # Growing tier: Remove 9 month plan
             mock_emi_details.pop("DMI_FINANCE", None)
@@ -525,7 +532,7 @@ class MockPayUClient:
         # Parse mock response using same logic as real PayU
         emi_plans = self._parse_payu_emi_response(mock_emi_details, amount)
 
-        logger.info(f"✅ [MOCK PayU] Generated {len(emi_plans)} EMI options for {user_id}")
+        logger.info(f"[SUCCESS] [MOCK PayU] Generated {len(emi_plans)} EMI options for {user_id}")
 
         return {
             "status": "success",
@@ -596,7 +603,7 @@ class MockPayUClient:
         amount: float
     ) -> Dict[str, Any]:
         """Mock checkout initiation."""
-        logger.info(f"🎭 [MOCK PayU] Checkout initiated: {transaction_id}")
+        logger.info(f"[MOCK] [MOCK PayU] Checkout initiated: {transaction_id}")
         return {
             "status": "success",
             "checkout_url": f"https://mock-payu.grabon.in/checkout/{transaction_id}",
@@ -609,7 +616,7 @@ class MockPayUClient:
         transaction_id: str
     ) -> Dict[str, Any]:
         """Mock transaction status check."""
-        logger.info(f"🎭 [MOCK PayU] Status check: {transaction_id}")
+        logger.info(f"[MOCK] [MOCK PayU] Status check: {transaction_id}")
         return {
             "status": "success",
             "amount": 12499.0,
@@ -652,12 +659,12 @@ def get_payu_client():
     if has_real_credentials:
         # Use real PayU client
         if _payu_client is None:
-            logger.info("🔗 Initializing REAL PayU LazyPay client")
+            logger.info("[PAYU] Initializing REAL PayU LazyPay client")
             _payu_client = PayULazyPayClient()
         return _payu_client
     else:
         # Use mock PayU client
         if _mock_payu_client is None:
-            logger.info("🎭 Initializing MOCK PayU client (no real credentials)")
+            logger.info("[MOCK] Initializing MOCK PayU client (no real credentials)")
             _mock_payu_client = MockPayUClient()
         return _mock_payu_client

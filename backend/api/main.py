@@ -19,6 +19,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from api.config import settings
 from api.routes import checkout, health
+import sys
+from pathlib import Path
+
+# Add backend root to path for shared_logging import
+backend_root = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_root))
+
+from shared_logging import setup_logging, log_section_separator
+
+# Initialize centralized logger for API server
+logger = setup_logging("api-server", level="INFO")
 
 
 @asynccontextmanager
@@ -28,26 +39,30 @@ async def lifespan(app: FastAPI):
     Replaces deprecated @app.on_event decorators.
     """
     # Startup
-    print("=" * 80)
-    print(f"{settings.APP_NAME} v{settings.APP_VERSION}")
-    print("=" * 80)
-    print(f"Server: http://{settings.HOST}:{settings.PORT}")
-    print(f"Docs: http://{settings.HOST}:{settings.PORT}/docs")
-    print(f"MCP Server: {settings.MCP_SERVER_URL}")
-    print("=" * 80)
-    print("\nEndpoints:")
-    print("  POST /api/checkout/eligibility - Check BNPL eligibility")
-    print("  GET  /health - Health check")
-    print("  GET  /docs - API documentation")
-    print("\nReady to accept requests!")
-    print("=" * 80 + "\n")
+    log_section_separator(logger, "API SERVER STARTUP")
+    logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Server: http://{settings.HOST}:{settings.PORT}")
+    logger.info(f"Docs: http://{settings.HOST}:{settings.PORT}/docs")
+    logger.info(f"MCP Server: {settings.MCP_SERVER_URL}")
+    logger.info(f"PayU Mode: {'MOCK' if settings.PAYU_MERCHANT_KEY == 'gtKFFx' else 'REAL SANDBOX'}")
+    logger.info("")
+    logger.info("Endpoints:")
+    logger.info("  POST /api/checkout/eligibility - Check BNPL eligibility")
+    logger.info("  GET  /health - Health check")
+    logger.info("  GET  /docs - API documentation")
+    logger.info("")
+    logger.info("[READY] Server ready to accept requests")
+    log_section_separator(logger, "")
 
     yield
 
     # Shutdown
+    log_section_separator(logger, "API SERVER SHUTDOWN")
     from api.services.mcp_client import get_mcp_client
     mcp = get_mcp_client()
     await mcp.close()
+    logger.info("[SHUTDOWN] MCP client closed")
+    logger.info("[SHUTDOWN] API server shutdown complete")
     print("\nServer shutdown complete.")
 
 

@@ -154,3 +154,9 @@ tasks/
 project.txt
 fixes.txt
 
+.windsurfrules
+AGENTS.md
+GEMINI.md
+.code-review-graph
+.cursorrules
+.mcp.json

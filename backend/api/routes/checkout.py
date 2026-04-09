@@ -2,7 +2,8 @@
 Checkout routes - Main BNPL eligibility endpoint.
 """
 
-import logging
+import sys
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from api.schemas.request_schemas import EligibilityRequest
 from api.schemas.response_schemas import (
@@ -14,7 +15,18 @@ from api.services.mcp_client import get_mcp_client
 from api.services.payu_client import get_payu_client
 from api.config import settings
 
-logger = logging.getLogger(__name__)
+# Add backend root to path for shared_logging import
+backend_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(backend_root))
+
+from shared_logging import (
+    setup_logging,
+    log_api_request,
+    log_mcp_tool_call,
+    log_eligibility_check
+)
+
+logger = setup_logging("api-checkout", level="INFO")
 router = APIRouter(prefix="/checkout", tags=["checkout"])
 
 
@@ -35,13 +47,17 @@ async def check_eligibility(request: EligibilityRequest):
     mcp = get_mcp_client()
 
     try:
+        # Log incoming request
+        log_api_request(logger, "POST", "/api/checkout/eligibility", request.user_id)
+        logger.info(f"[PRODUCT] {request.product_id} | Amount: Rs.{request.amount:,.2f}")
+
         # Step 1: Get user profile
-        print(f"Fetching profile for {request.user_id}...")
+        log_mcp_tool_call(logger, "get_user_profile_tool", {"user_id": request.user_id})
         user_profile = await mcp.call_tool(
             "get_user_profile_tool",
             {"user_id": request.user_id}
         )
-        print(f"Profile fetched: {user_profile.get('name', 'N/A')}")
+        logger.info(f"[SUCCESS] Profile fetched: {user_profile.get('name', 'N/A')}")
 
         if user_profile.get("error"):
             raise HTTPException(
@@ -50,12 +66,21 @@ async def check_eligibility(request: EligibilityRequest):
             )
 
         # Step 2: Calculate credit score
+        log_mcp_tool_call(logger, "calculate_credit_score_tool",
+                         {"user_id": request.user_id, "amount": request.amount})
         credit_score = await mcp.call_tool(
             "calculate_credit_score_tool",
             {
                 "user_id": request.user_id,
                 "purchase_amount": request.amount
             }
+        )
+        log_eligibility_check(
+            logger,
+            request.user_id,
+            request.amount,
+            credit_score["decision"],
+            credit_score.get("credit_limit")
         )
 
         # Step 3: Generate EMI options (if approved)
