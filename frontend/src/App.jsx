@@ -9,14 +9,13 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import { useBNPLState } from './hooks/useBNPLState';
 import { useEligibilityCheck } from './hooks/useEligibilityCheck';
 import { userPersonas, orderData } from './data/mockData';
-import { testConnection } from './services/api';
+import { testConnection, pollBackendConnection } from './services/api';
 
 function App() {
-  // API mode toggle - Default to Real API mode for production
-  const [useRealAPI, setUseRealAPI] = useState(true);
+  // Backend connection state
   const [backendConnected, setBackendConnected] = useState(false);
 
-  // Persona management
+  // Persona management (user IDs for API calls)
   const [currentPersona, setCurrentPersona] = useState('regularUser');
 
   // Toast notifications
@@ -30,12 +29,10 @@ function App() {
     checkUserEligibility
   } = useEligibilityCheck(orderData.product.title, orderData.pricing.total);
 
-  // Active persona (from API or mock) - Always fallback to mock data to prevent crashes
-  const activePersona = (useRealAPI && eligibilityData)
-    ? eligibilityData
-    : userPersonas[currentPersona] || userPersonas.regularUser;
+  // Active persona - ONLY from real-time API (no mock fallback)
+  const activePersona = eligibilityData;
 
-  // State management - Add safety checks
+  // State management - Only works when we have real API data
   const {
     selectedPayment,
     setSelectedPayment,
@@ -47,33 +44,75 @@ function App() {
     canProceed,
     finalAmount,
     ctaText,
-  } = useBNPLState(activePersona?.status || 'approved', activePersona?.emiOptions || []);
+  } = useBNPLState(
+    eligibilityData?.status || 'loading',
+    eligibilityData?.emiOptions || []
+  );
 
   // Feature flag for persona switcher (for demo/testing only)
   const SHOW_PERSONA_SWITCHER = import.meta.env.VITE_SHOW_PERSONA_SWITCHER === 'true';
   const [showPersonaSwitcher, setShowPersonaSwitcher] = useState(SHOW_PERSONA_SWITCHER);
 
-  // Check backend connectivity on mount and fetch initial eligibility
+  // Check backend connectivity on mount with retry and start polling
   useEffect(() => {
     const checkBackend = async () => {
-      const connected = await testConnection();
+      // Try to connect with 3 retries, 2 seconds between each
+      const connected = await testConnection(3, 2000);
       setBackendConnected(connected);
+
       if (connected) {
         setToast({
           type: 'success',
           message: 'Backend connected successfully'
         });
-        // Fetch eligibility for default persona if Real API is enabled
-        if (useRealAPI) {
-          const userId = userIdMap[currentPersona];
-          if (userId) {
-            await checkUserEligibility(userId);
-          }
+        // Always fetch eligibility data for default persona
+        const userId = userIdMap[currentPersona];
+        if (userId) {
+          await checkUserEligibility(userId);
         }
+      } else {
+        setToast({
+          type: 'error',
+          message: 'Backend not reachable. Waiting for connection... (retrying every 10s)'
+        });
       }
     };
+
+    // Initial connection check
     checkBackend();
-  }, []);
+
+    // Start polling for backend connection (checks every 10 seconds)
+    const stopPolling = pollBackendConnection(
+      // onConnect callback
+      async () => {
+        setBackendConnected(true);
+        setToast({
+          type: 'success',
+          message: 'Backend reconnected! Fetching data...'
+        });
+
+        // Always auto-fetch data when backend comes online
+        const userId = userIdMap[currentPersona];
+        if (userId) {
+          await checkUserEligibility(userId);
+        }
+      },
+      // onDisconnect callback
+      () => {
+        setBackendConnected(false);
+        setToast({
+          type: 'error',
+          message: 'Backend connection lost. Please check backend server...'
+        });
+      },
+      10000 // Poll every 10 seconds
+    );
+
+    // Cleanup: stop polling when component unmounts
+    return () => {
+      stopPolling();
+    };
+  }, []); // Empty deps - only run on mount
 
   // Handle API error changes
   useEffect(() => {
@@ -94,58 +133,25 @@ function App() {
     'powerUser': 'USR_VIKRAM'
   };
 
-  // Handle persona change
+  // Handle persona change - Always fetch from API if connected
   const handlePersonaChange = async (personaKey) => {
     setCurrentPersona(personaKey);
     setSelectedEMI(null);
 
-    if (useRealAPI && backendConnected) {
+    if (backendConnected) {
       try {
         await checkUserEligibility(userIdMap[personaKey]);
         setToast({
           type: 'success',
-          message: `Loaded eligibility for ${userPersonas[personaKey].name}`
-        });
-      } catch (error) {
-        console.error('Failed to fetch eligibility:', error);
-      }
-    }
-  };
-
-  // Toggle API mode
-  const handleToggleAPIMode = async () => {
-    const newMode = !useRealAPI;
-
-    if (newMode && backendConnected) {
-      // Switch mode immediately to show loading state
-      setUseRealAPI(newMode);
-      setToast({
-        type: 'success',
-        message: 'Switched to Real API Mode - Loading data...'
-      });
-      // Fetch current persona data
-      try {
-        await checkUserEligibility(userIdMap[currentPersona]);
-        setToast({
-          type: 'success',
-          message: 'Real API data loaded successfully'
+          message: `Loaded eligibility for user ${userIdMap[personaKey]}`
         });
       } catch (error) {
         console.error('Failed to fetch eligibility:', error);
         setToast({
           type: 'error',
-          message: 'Failed to load API data. Please try again.'
+          message: 'Failed to load user data. Please try again.'
         });
-        // Switch back to mock mode on error
-        setUseRealAPI(false);
       }
-    } else {
-      // Switching to mock mode - safe to do immediately
-      setUseRealAPI(newMode);
-      setToast({
-        type: 'success',
-        message: 'Switched to Mock Data Mode'
-      });
     }
   };
 
@@ -195,7 +201,7 @@ function App() {
             <div>
               <h3 className="text-sm font-bold text-gray-900">User Personas</h3>
               <p className="text-xs text-gray-500">
-                {useRealAPI ? '[LIVE] Real API Mode' : '[DEMO] Mock Data Mode'}
+                {backendConnected ? '[LIVE] Real-time Data' : '[OFFLINE] Waiting for backend...'}
               </p>
             </div>
             <button
@@ -208,30 +214,34 @@ function App() {
             </button>
           </div>
 
-          {/* API Mode Toggle */}
-          <div className="mb-3 p-2 bg-gray-50 rounded-lg">
-            <label className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-700">
-                Use Real API {backendConnected ? '[ON]' : '[OFF]'}
-              </span>
-              <button
-                onClick={handleToggleAPIMode}
-                disabled={!backendConnected}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                  useRealAPI ? 'bg-grabcredit-600' : 'bg-gray-300'
-                } ${!backendConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span
-                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                    useRealAPI ? 'translate-x-5' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </label>
-            {!backendConnected && (
-              <p className="text-xs text-red-600 mt-1">
-                [WARNING] Backend not running. Start: python backend/run.py
-              </p>
+          {/* Backend Status Indicator */}
+          <div className="mb-3">
+            {backendConnected ? (
+              <div className="p-2 bg-green-50 border border-green-200 rounded-lg text-xs">
+                <div className="flex items-center gap-2 text-green-800">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-semibold">Backend Connected</span>
+                  <span className="text-green-600 text-xs">(Real-time API)</span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs">
+                <div className="flex items-center gap-2 text-red-800 mb-1">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="font-semibold">Connecting to backend...</span>
+                </div>
+                <p className="text-red-700 ml-6">
+                  Start backend: <code className="bg-red-100 px-1 py-0.5 rounded text-xs font-mono">python backend/run.py</code>
+                </p>
+                <p className="text-red-600 ml-6 mt-1">
+                  Auto-retrying every 10 seconds...
+                </p>
+              </div>
             )}
           </div>
 
@@ -245,26 +255,31 @@ function App() {
           {/* Persona Buttons */}
           <div className="space-y-2">
             {Object.entries(userPersonas).map(([key, persona]) => {
-              // Show real API data if available and in API mode, otherwise show mock data
-              const displayData = (useRealAPI && currentPersona === key && eligibilityData)
+              // Show real API data only if available for current persona
+              const displayData = (currentPersona === key && eligibilityData)
                 ? eligibilityData
-                : persona;
+                : null; // No fallback to mock data
+
+              const isCurrentPersona = currentPersona === key;
+              const hasData = !!displayData;
 
               return (
                 <button
                   key={key}
                   onClick={() => handlePersonaChange(key)}
-                  disabled={isLoading}
+                  disabled={isLoading || !backendConnected}
                   className={`w-full p-3 text-left rounded-lg border-2 transition-all ${getPersonaButtonClass(key)} ${
-                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    (isLoading || !backendConnected) ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-xs font-mono font-bold">{getPersonaIcon(displayData.status)}</span>
+                    <span className="text-xs font-mono font-bold">
+                      {hasData ? getPersonaIcon(displayData.status) : '[?]'}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold truncate">{persona.name}</span>
-                        {currentPersona === key && (
+                        {isCurrentPersona && (
                           <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
@@ -272,8 +287,14 @@ function App() {
                       </div>
                       <div className="text-xs opacity-75 mt-0.5">{persona.type}</div>
                       <div className="text-xs opacity-60 mt-1">
-                        {(displayData.transactionHistory?.total_purchases || displayData.transactionHistory?.totalPurchases || 0)} purchases
-                        {displayData.status === 'approved' && ` | Limit: Rs.${(displayData.creditLimit || displayData.credit_limit || 0).toLocaleString('en-IN')}`}
+                        {hasData ? (
+                          <>
+                            {(displayData.transactionHistory?.total_purchases || displayData.transactionHistory?.totalPurchases || 0)} purchases
+                            {displayData.status === 'approved' && ` | Limit: Rs.${(displayData.creditLimit || displayData.credit_limit || 0).toLocaleString('en-IN')}`}
+                          </>
+                        ) : (
+                          <span className="text-gray-400 italic">Click to load data from API</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -327,6 +348,24 @@ function App() {
         {/* BNPL Widget with Loading State */}
         {isLoading && isGrabCreditSelected ? (
           <LoadingSkeleton variant="bnpl" />
+        ) : !backendConnected ? (
+          isGrabCreditSelected && (
+            <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg text-center">
+              <svg className="w-12 h-12 mx-auto text-amber-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-amber-900 mb-2">Backend Not Connected</h3>
+              <p className="text-amber-700 text-sm mb-3">
+                Pay Later requires connection to the backend server to check eligibility.
+              </p>
+              <code className="block bg-amber-100 p-2 rounded text-sm text-amber-900 mb-3">
+                python backend/run.py
+              </code>
+              <p className="text-amber-600 text-xs">
+                The page will auto-connect when backend is ready.
+              </p>
+            </div>
+          )
         ) : activePersona ? (
           <BNPLWidget
             isExpanded={isGrabCreditSelected}
@@ -336,19 +375,28 @@ function App() {
             showQualificationReason={showQualificationReason}
             onToggleQualification={() => setShowQualificationReason(!showQualificationReason)}
           />
-        ) : null}
-
-        {/* Footer Bar */}
-        {activePersona && (
-          <FooterBar
-            selectedEMI={selectedEMI}
-            ctaText={ctaText}
-            canProceed={canProceed && !isLoading}
-            isGrabCreditSelected={isGrabCreditSelected}
-            emiOptions={activePersona.emiOptions || []}
-            isLoading={isLoading}
-          />
+        ) : (
+          isGrabCreditSelected && (
+            <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
+              <svg className="animate-spin w-8 h-8 mx-auto text-blue-500 mb-3" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-blue-700 text-sm">Loading eligibility data from API...</p>
+              <p className="text-blue-600 text-xs mt-2">Click a user persona above to load their data</p>
+            </div>
+          )
         )}
+
+        {/* Footer Bar - Always show but adjust state based on data availability */}
+        <FooterBar
+          selectedEMI={selectedEMI}
+          ctaText={activePersona ? ctaText : 'Connect to backend first'}
+          canProceed={activePersona && backendConnected && canProceed && !isLoading}
+          isGrabCreditSelected={isGrabCreditSelected}
+          emiOptions={activePersona?.emiOptions || []}
+          isLoading={isLoading || !backendConnected}
+        />
       </CheckoutContainer>
 
       {/* Toggle Demo Controls Button (when hidden) */}

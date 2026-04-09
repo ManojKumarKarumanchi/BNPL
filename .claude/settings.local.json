@@ -79,7 +79,8 @@
       "Bash(pkill -f \"uvicorn api.main:app\")",
       "Bash(grep -E \"^-.*\\\\.\\(md|txt\\)$\")",
       "Bash(find:*)",
-      "Bash(taskkill //F //IM python.exe //FI \"WINDOWTITLE eq *uvicorn*\")"
+      "Bash(taskkill //F //IM python.exe //FI \"WINDOWTITLE eq *uvicorn*\")",
+      "Bash(tasklist)"
     ]
   }
 }

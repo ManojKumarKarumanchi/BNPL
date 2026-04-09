@@ -114,16 +114,79 @@ export async function checkHealth() {
 }
 
 /**
- * Test API connectivity.
+ * Test API connectivity with retry logic.
  * Call this on app startup to verify backend is reachable.
+ *
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
+ * @param {number} retryDelay - Delay between retries in ms (default: 2000)
+ * @returns {Promise<boolean>} True if backend is reachable
  */
-export async function testConnection() {
-  try {
-    const health = await checkHealth();
-    console.log('✅ Backend connected:', health);
-    return true;
-  } catch (error) {
-    console.error('❌ Backend not reachable:', error);
-    return false;
+export async function testConnection(maxRetries = 3, retryDelay = 2000) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Checking backend connection (attempt ${attempt}/${maxRetries})...`);
+      const health = await checkHealth();
+      console.log('✅ Backend connected:', health);
+      return true;
+    } catch (error) {
+      lastError = error;
+      console.warn(`⚠️ Connection attempt ${attempt} failed:`, error.message);
+
+      // If not the last attempt, wait before retrying
+      if (attempt < maxRetries) {
+        console.log(`⏳ Retrying in ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
   }
+
+  console.error('❌ Backend not reachable after', maxRetries, 'attempts:', lastError?.message);
+  return false;
+}
+
+/**
+ * Start polling backend connectivity.
+ * Useful for auto-reconnecting when backend comes online.
+ *
+ * @param {function} onConnect - Callback when backend connects
+ * @param {function} onDisconnect - Callback when backend disconnects
+ * @param {number} interval - Polling interval in ms (default: 10000 = 10 seconds)
+ * @returns {function} Stop function to cancel polling
+ */
+export function pollBackendConnection(onConnect, onDisconnect, interval = 10000) {
+  let isConnected = false;
+  let intervalId = null;
+
+  const checkConnection = async () => {
+    try {
+      await checkHealth();
+      if (!isConnected) {
+        isConnected = true;
+        console.log('✅ Backend reconnected');
+        if (onConnect) onConnect();
+      }
+    } catch (error) {
+      if (isConnected) {
+        isConnected = false;
+        console.warn('⚠️ Backend disconnected');
+        if (onDisconnect) onDisconnect();
+      }
+    }
+  };
+
+  // Start polling
+  intervalId = setInterval(checkConnection, interval);
+
+  // Do initial check
+  checkConnection();
+
+  // Return stop function
+  return () => {
+    if (intervalId) {
+      clearInterval(intervalId);
+      console.log('⏹️ Stopped backend polling');
+    }
+  };
 }
