@@ -39,8 +39,8 @@ const FooterBar = ({ selectedEMI, ctaText, canProceed, isGrabCreditSelected, emi
           className={`
             px-8 py-3 md:py-4 rounded-lg font-semibold text-base md:text-lg transition-all duration-200 flex items-center justify-center gap-2
             ${canProceed && !isLoading
-              ? 'bg-grabcredit-600 hover:bg-grabcredit-700 text-white shadow-lg hover:shadow-xl shadow-grabcredit-200'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              ? 'bg-grabcredit-600 hover:bg-grabcredit-700 text-white shadow-lg hover:shadow-xl shadow-grabcredit-200 cursor-pointer'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
             }
           `}
         >

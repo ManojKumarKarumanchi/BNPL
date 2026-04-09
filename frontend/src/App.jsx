@@ -142,17 +142,17 @@ function App() {
     }
   };
 
-  // Persona icons based on status
+  // Persona status indicators based on status
   const getPersonaIcon = (status) => {
     switch (status) {
       case 'approved':
-        return '✅';
+        return '[APPROVED]';
       case 'not_eligible':
-        return '❌';
+        return '[REJECTED]';
       case 'new_user':
-        return '👤';
+        return '[NEW]';
       default:
-        return '⭐';
+        return '[VIP]';
     }
   };
 
@@ -188,7 +188,7 @@ function App() {
             <div>
               <h3 className="text-sm font-bold text-gray-900">User Personas</h3>
               <p className="text-xs text-gray-500">
-                {useRealAPI ? '🔴 Real API Mode' : '🟢 Mock Data Mode'}
+                {useRealAPI ? '[LIVE] Real API Mode' : '[DEMO] Mock Data Mode'}
               </p>
             </div>
             <button
@@ -205,7 +205,7 @@ function App() {
           <div className="mb-3 p-2 bg-gray-50 rounded-lg">
             <label className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-700">
-                Use Real API {backendConnected ? '🟢' : '🔴'}
+                Use Real API {backendConnected ? '[ON]' : '[OFF]'}
               </span>
               <button
                 onClick={handleToggleAPIMode}
@@ -223,7 +223,7 @@ function App() {
             </label>
             {!backendConnected && (
               <p className="text-xs text-red-600 mt-1">
-                ⚠️ Backend not running. Start: python backend/run.py
+                [WARNING] Backend not running. Start: python backend/run.py
               </p>
             )}
           </div>
@@ -253,7 +253,7 @@ function App() {
                   }`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-lg">{getPersonaIcon(displayData.status)}</span>
+                    <span className="text-xs font-mono font-bold">{getPersonaIcon(displayData.status)}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold truncate">{persona.name}</span>
@@ -266,7 +266,7 @@ function App() {
                       <div className="text-xs opacity-75 mt-0.5">{persona.type}</div>
                       <div className="text-xs opacity-60 mt-1">
                         {(displayData.transactionHistory?.total_purchases || displayData.transactionHistory?.totalPurchases || 0)} purchases
-                        {displayData.status === 'approved' && ` • ₹${(displayData.creditLimit || displayData.credit_limit || 0).toLocaleString('en-IN')} limit`}
+                        {displayData.status === 'approved' && ` | Limit: Rs.${(displayData.creditLimit || displayData.credit_limit || 0).toLocaleString('en-IN')}`}
                       </div>
                     </div>
                   </div>

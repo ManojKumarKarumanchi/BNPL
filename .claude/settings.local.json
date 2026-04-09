@@ -73,7 +73,8 @@
       "WebFetch(domain:www.herofincorp.com)",
       "WebFetch(domain:payu.in)",
       "Bash(pkill -f \"python run.py\")",
-      "mcp__plugin_playwright_playwright__browser_close"
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_run_code"
     ]
   }
 }
